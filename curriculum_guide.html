@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>打造互動教室：AIoT 機電整合與智慧裝置設計 —— 科技教師研習實作講義</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #d97706;
+      --accent-light: #fef3c7;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --success: #059669;
+      --success-light: #ecfdf5;
+      --bg: #f8fafc;
+      --sidebar-bg: #ffffff;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --code-bg: #0f172a;
+      --code-text: #f1f5f9;
+      --shadow: 0 2px 4px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07);
+      --font-sans: 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 100%;
+      overflow-x: hidden;
+      /* 防止橫向溢出 */
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      line-height: 1.8;
+      font-size: 17px;
+      /* 舒適清晰，不壓迫 */
+    }
+
+    /* 頂部導覽列：永久置頂 */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-badge {
+      background: var(--primary);
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #0f172a;
+      white-space: nowrap;
+    }
+
+    .author-tag {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .author-tag strong {
+      color: var(--primary);
+    }
+
+    /* 主架構版型：標準雙欄結構 */
+    .layout-container {
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    /* 左側側邊欄：加寬至 290px，精簡字距，薄型滾動條，文字不截斷不換行 */
+    aside.sidebar {
+      position: fixed;
+      top: 60px;
+      left: 0;
+      bottom: 0;
+      width: 290px;
+      overflow-y: auto;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      padding: 1.1rem 0.85rem;
+      z-index: 90;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+    }
+
+    aside.sidebar::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    aside.sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    aside.sidebar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 4px;
+    }
+
+    aside.sidebar::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+
+    .sidebar-section-title {
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin: 1.1rem 0 0.35rem 0.3rem;
+    }
+
+    .sidebar-section-title:first-child {
+      margin-top: 0;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.55rem 0.75rem;
+      border-radius: 0.5rem;
+      text-decoration: none;
+      color: #475569;
+      font-size: 0.91rem;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: -0.01em;
+    }
+
+    .nav-item a:hover {
+      background-color: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .nav-item a.active {
+      background: var(--primary);
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .nav-icon {
+      font-size: 1.05rem;
+      width: 1.25rem;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .status-box {
+      margin-top: 0.75rem;
+      padding: 0.65rem 0.75rem;
+      background: #f8fafc;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .status-title {
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 0.3rem;
+      font-size: 0.82rem;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      white-space: nowrap;
+      margin-bottom: 0.2rem;
+    }
+
+    /* 右側主文章區：依左欄寬度位移，獨立隨頁面捲動 */
+    main.content-area {
+      margin-left: 290px;
+      margin-top: 60px;
+      min-width: 0;
+      /* 關鍵：阻止 flex 子項或圖片溢出 */
+      padding: 2.2rem 3rem 6rem;
+      max-width: 1200px;
+    }
+
+    section.content-module {
+      margin-bottom: 4.5rem;
+      scroll-margin-top: 80px;
+    }
+
+    .module-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .module-tag {
+      display: inline-block;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 0.25rem 0.65rem;
+      border-radius: 0.35rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .module-title {
+      font-size: 1.9rem;
+      font-weight: 900;
+      color: #0f172a;
+      letter-spacing: -0.01em;
+      line-height: 1.35;
+    }
+
+    .module-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-top: 0.4rem;
+    }
+
+    /* 內文排版風格 */
+    h3 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #1e293b;
+      margin: 1.8rem 0 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h4 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #334155;
+      margin: 1.4rem 0 0.6rem;
+    }
+
+    p {
+      margin-bottom: 1.2rem;
+      color: #334155;
+      line-height: 1.8;
+    }
+
+    ul,
+    ol {
+      margin-bottom: 1.3rem;
+      padding-left: 1.6rem;
+      color: #334155;
+    }
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+
+    /* 圖卡排版：圖與容器緊密收斂，防止橫向超出 */
+    .figure-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      overflow: hidden;
+      margin: 1.5rem 0;
+      box-shadow: var(--shadow);
+      max-width: 100%;
+    }
+
+    .figure-card img {
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      display: block;
+      object-fit: contain;
+      max-height: 440px;
+      background: #f1f5f9;
+    }
+
+    .figure-caption {
+      padding: 0.75rem 1.2rem;
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .figure-caption strong {
+      color: var(--text);
+    }
+
+    /* 雙欄圖網格：自適應換行 */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin: 1.5rem 0;
+      width: 100%;
+    }
+
+    /* 提示訊息框 */
+    .callout {
+      border-radius: 0.65rem;
+      padding: 1.1rem 1.3rem;
+      margin: 1.5rem 0;
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      border-left: 4px solid;
+      max-width: 100%;
+    }
+
+    .callout-icon {
+      font-size: 1.4rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .callout-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .callout-title {
+      font-weight: 750;
+      font-size: 1.05rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .callout-danger {
+      background: var(--danger-light);
+      border-color: var(--danger);
+      color: #991b1b;
+    }
+
+    .callout-danger .callout-title {
+      color: #b91c1c;
+    }
+
+    .callout-warning {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: #92400e;
+    }
+
+    .callout-warning .callout-title {
+      color: #b45309;
+    }
+
+    .callout-info {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: #1e40af;
+    }
+
+    .callout-info .callout-title {
+      color: #1d4ed8;
+    }
+
+    .callout-success {
+      background: var(--success-light);
+      border-color: var(--success);
+      color: #065f46;
+    }
+
+    .callout-success .callout-title {
+      color: #047857;
+    }
+
+    /* 表格：容器自帶滾動與邊框限制 */
+    .table-container {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+      border-radius: 0.65rem;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.95rem;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: #334155;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: #f8fafc;
+    }
+
+    /* 程式碼卡片：pre 自動換行防爆框 */
+    .code-card {
+      background: var(--code-bg);
+      border-radius: 0.65rem;
+      overflow: hidden;
+      margin: 1.5rem 0;
+      max-width: 100%;
+      box-shadow: var(--shadow-md);
+    }
+
+    .code-header {
+      background: #1e293b;
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+    }
+
+    .code-title {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      color: #94a3b8;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #e2e8f0;
+      font-size: 0.8rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 0.35rem;
+      cursor: pointer;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+
+    .copy-btn:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    pre {
+      padding: 1.2rem;
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      /* 關鍵：提示詞長文本自動換行，不撐破版面 */
+      word-break: break-word;
+      /* 長單詞自動折行 */
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: var(--code-text);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: #f1f5f9;
+      color: #b45309;
+      padding: 0.15em 0.35em;
+      border-radius: 0.25em;
+      border: 1px solid #e2e8f0;
+    }
+
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      border: none;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-right: 0.3rem;
+    }
+
+    .badge-primary {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .badge-warning {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    .badge-success {
+      background: #d1fae5;
+      color: #047857;
+    }
+
+    .badge-danger {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    footer {
+      margin-left: 290px;
+      border-top: 1px solid var(--border);
+      background: #ffffff;
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.92rem;
+    }
+
+    /* 螢幕拖拉縮小或視窗切半時，左側選單依然永久存在（絕不消失，維持雙欄） */
+    @media (max-width: 1024px) {
+      aside.sidebar {
+        width: 230px;
+        padding: 1rem 0.5rem;
+      }
+
+      .nav-item a {
+        font-size: 0.83rem;
+        padding: 0.45rem 0.5rem;
+        gap: 0.35rem;
+      }
+
+      main.content-area {
+        margin-left: 230px;
+        padding: 1.5rem 1.8rem 4rem;
+      }
+
+      footer {
+        margin-left: 230px;
+      }
+
+      .brand-title {
+        font-size: 1rem;
+      }
+
+      .brand-badge {
+        font-size: 0.72rem;
+      }
+
+      .author-tag {
+        font-size: 0.78rem;
+      }
+    }
+
+    @media (max-width: 680px) {
+      header {
+        padding: 0 0.8rem;
+      }
+
+      .brand-badge,
+      .author-tag {
+        display: none;
+        /* 超窄螢幕只留大標題，釋放頂部空間 */
+      }
+
+      aside.sidebar {
+        width: 58px;
+        padding: 0.8rem 0.25rem;
+      }
+
+      .sidebar-section-title,
+      .status-box {
+        display: none;
+      }
+
+      .nav-item a {
+        justify-content: center;
+        padding: 0.6rem 0;
+        font-size: 0;
+        /* 隱藏文字，只留圖標快捷按鈕 */
+      }
+
+      .nav-icon {
+        font-size: 1.35rem;
+        width: auto;
+      }
+
+      main.content-area {
+        margin-left: 58px;
+        padding: 1.2rem 1rem 3rem;
+      }
+
+      footer {
+        margin-left: 58px;
+        padding: 1.5rem 1rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 頂部導覽列 -->
+  <header>
+    <div class="brand">
+      <span class="brand-badge">高雄市科技領域輔導團</span>
+      <h1 class="brand-title">打造互動教室：AIoT 機電整合與智慧裝置設計</h1>
+    </div>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <div class="author-tag">
+        教案設計：<strong>王朝葦 老師（王董）</strong>（高雄市立福山國中 / 科技領域輔導員）
+      </div>
+      <div style="display: flex; gap: 0.5rem;">
+        <a href="workshop_presentation.html" target="_blank" style="display: inline-flex; align-items: center; gap: 0.35rem; background: #0284c7; color: #fff; font-size: 0.82rem; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 0.45rem; text-decoration: none; box-shadow: 0 1px 3px rgba(2,132,199,0.3); transition: all 0.15s ease;">
+          <span>📺 簡報大看板</span>
+        </a>
+        <a href="折返跑.md" target="_blank" style="display: inline-flex; align-items: center; gap: 0.35rem; background: #475569; color: #fff; font-size: 0.82rem; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 0.45rem; text-decoration: none; box-shadow: 0 1px 3px rgba(71,85,105,0.3); transition: all 0.15s ease;">
+          <span>📜 技術手冊</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout-container">
+
+    <!-- 左側邊欄：課程單元項目 (寬度加寬至 290px，文字一覽無遺不截斷) -->
+    <aside class="sidebar">
+      <div class="sidebar-section-title">課程項目</div>
+      <ul class="nav-list">
+        <li class="nav-item"><a href="#module-vision" class="active"><span class="nav-icon">🎯</span>AIoT 機電整合概念</a></li>
+        <li class="nav-item"><a href="#module-hardware"><span class="nav-icon">🛠️</span>硬體工藝與電源安全</a></li>
+        <li class="nav-item"><a href="#module-environment"><span class="nav-icon">💻</span>雙軌環境與 AI 流程</a></li>
+        <li class="nav-item"><a href="#module-stage1"><span class="nav-icon">⚡</span>階段一：手速賽 (OTA)</a></li>
+        <li class="nav-item"><a href="#module-stage2"><span class="nav-icon">🏓</span>階段二：乒乓賽 (ESP-NOW)</a></li>
+        <li class="nav-item"><a href="#module-future"><span class="nav-icon">🏃</span>階段三：折返跑 (ArenaPod)</a></li>
+        <li class="nav-item"><a href="#module-troubleshooting"><span class="nav-icon">🛡️</span>實戰排錯與戰備檢核</a></li>
+      </ul>
+
+      <div class="sidebar-section-title">戰備資源直達</div>
+      <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.2rem;">
+        <a href="workshop_presentation.html" target="_blank" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: #e0f2fe; color: #0369a1; border-radius: 0.45rem; text-decoration: none; font-size: 0.82rem; font-weight: 700;">
+          <span>📺 現場投影大簡報</span><span>↗</span>
+        </a>
+        <a href="折返跑.md" target="_blank" style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: #f1f5f9; color: #334155; border-radius: 0.45rem; text-decoration: none; font-size: 0.82rem; font-weight: 700;">
+          <span>📜 折返跑技術手冊</span><span>↗</span>
+        </a>
+        <a href="Arduino-1.8.19-Portable-ESP8266.zip" download style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: #fef3c7; color: #b45309; border-radius: 0.45rem; text-decoration: none; font-size: 0.82rem; font-weight: 700;">
+          <span>📦 免安裝 Arduino 包</span><span>⬇</span>
+        </a>
+      </div>
+
+      <div class="sidebar-section-title">實體硬體狀態 (4 盒已備妥)</div>
+      <div class="status-box">
+        <div class="status-title">🔌 現場四盒燒錄配置</div>
+        <div class="status-row" style="color: #16a34a; font-weight: 700;">● Pod 0 (Master)：37:43</div>
+        <div class="status-row" style="color: #2563eb; font-weight: 700;">● Pod 1 (Slave 1)：4b:22</div>
+        <div class="status-row" style="color: #d97706; font-weight: 700;">● Pod 2 (Slave 2)：a1:f9</div>
+        <div class="status-row" style="color: #7c3aed; font-weight: 700;">● Pod 3 (Slave 3)：a0:c8</div>
+        <div style="margin-top: 0.4rem; color: #64748b; font-size: 0.75rem; line-height: 1.4;">
+          已燒錄 <strong>Stage 3B 四點星狀闖關跑</strong><br>
+          熱點：<code>ArenaPod_Master_3743</code><br>
+          （備案：隨時可切換 Stage 3A 雙板通用版）
+        </div>
+      </div>
+    </aside>
+
+    <!-- 右側大區域：課程核心內容 (min-width: 0 防止橫向撐破) -->
+    <main class="content-area">
+
+      <!-- 單元 0：AIoT 機電整合課程概念 -->
+      <section id="module-vision" class="content-module">
+        <div class="module-header">
+          <span class="module-tag">Module 00 · 課程架構</span>
+          <h2 class="module-title">AIoT 機電整合課程概念</h2>
+          <p class="module-subtitle">融合「開發端 AI 賦能」、「硬體端邊緣感測」與「應用端跨科整合」的實務思維</p>
+        </div>
+
+        <p>
+          在國中科技領域的教學脈絡中，<strong>生活科技</strong>著重於機構加工、結構強度與工具操作；<strong>資訊科技</strong>則聚焦於運算思維、程式邏輯與演算法。兩者的交會點，正是當代工程教育不可或缺的<strong>「機電整合（Mechatronics）」</strong>。
+        </p>
+
+        <h3>1. 為什麼談機電整合？科技課堂的實務觀察</h3>
+        <p>過去幾年，許多老師帶領孩子嘗試了非常多元的物聯網專題。這些主題在科學教育與生活應用上都極具啟發性，不過在每週有限的課堂排程中，現場也常會面臨一些客觀上的折衷與考量：</p>
+
+        <div class="figure-card">
+          <img src="images/slide_common_aiot_projects.jpg" alt="常見 AIoT 專題實務考量">
+          <div class="figure-caption">
+            <strong>常見題目的教學考量：</strong>視覺辨識（環境光線與運算門檻）、智慧農業（水土維護與生長週期）、校園氣象（數據採集偏背景靜態）、感應機構（馬達與傳動機構維護）、網路資料庫（校內網管設定等）。
+          </div>
+        </div>
+
+        <div class="figure-card">
+          <img src="images/slide_aiot_classroom_pain.jpg" alt="科技教師課堂現場實務交流">
+          <div class="figure-caption">
+            <strong>課堂實況交流：</strong>班級連線頻寬、感測器接觸靈敏度、學生除錯時間有限等，都是實體課堂中常見的教學情境。
+          </div>
+        </div>
+
+        <h3>2. AIoT 機電整合的三大核心支柱</h3>
+        <p>我們在規劃本研習時，希望為科技教師梳理一套兼具<strong>「可落地性」</strong>與<strong>「教學深度」</strong>的架構，將 AIoT 拆解為三大維度：</p>
+
+        <div class="grid-2">
+          <div class="callout callout-warning" style="margin: 0;">
+            <div class="callout-icon">🤖</div>
+            <div class="callout-body">
+              <div class="callout-title">支柱一｜開發端：AI 賦能開發 (Vibe Coding)</div>
+              <p style="font-size: 0.92rem; margin-bottom: 0;">生科老師不必死背繁複的 C++
+                語法，而是專注於「定義硬體腳位、設計狀態機邏輯與安全防護」，透過對話式提示詞（Prompt）引導 AI 生成完整且穩健的韌體與前端網頁。</p>
+            </div>
+          </div>
+          <div class="callout callout-info" style="margin: 0;">
+            <div class="callout-icon">📡</div>
+            <div class="callout-body">
+              <div class="callout-title">支柱二｜硬體端：邊緣極速感測 (Edge IoT)</div>
+              <p style="font-size: 0.92rem; margin-bottom: 0;">面對操場或戶外沒有基地台的環境，採用耐拍微動開關與 ESP-NOW 低延遲無線協定（<
+                  2ms），在邊緣端完成毫秒級時序採集與聲光反饋，擺脫外部 Wi-Fi 依賴。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">📈</div>
+          <div class="callout-body">
+            <div class="callout-title">支柱三｜應用端：跨領域數據整合 (Cross-Domain Data)</div>
+            <p style="font-size: 0.92rem; margin-bottom: 0;">
+              將硬體按鈕採集的數據結構化，與體育課常見的折返跑、敏捷訓練相結合。學生製作的機電盒子不再只是期末作業，而是能真正走出教室、走上操場服務全校師生的實體工具。</p>
+          </div>
+        </div>
+
+        <h3>3. 本課程的學習鷹架：循序漸進的實踐路徑</h3>
+        <p>為了讓老師與學生都能輕鬆上手，課程設計依序分為四個清晰階段：</p>
+        <ol>
+          <li><strong>單板手速挑戰（單機自檢）</strong>：驗證微動按鈕、LED、蜂鳴器與 SoftAP/SSE 網頁推播，建立非阻塞程式概念。</li>
+          <li><strong>雙板改桌號分組（P2P 廣播）</strong>：理解 ESP-NOW 點對點連線與軟體封包過濾邏輯。</li>
+          <li><strong>拍擊動態配對（Tap-to-Pair）</strong>：運用狀態機實現一鍵握手自動配對，體會消費級產品的互動細節。</li>
+          <li><strong>折返跑計時大腦（多節點串接）</strong>：延伸為中央裁判主機與多個端點的競技計時系統。</li>
+        </ol>
+
+        <div class="figure-card">
+          <img src="images/slide_arenapod_cost_effective.jpg" alt="ArenaPod 構想特色">
+          <div class="figure-caption">
+            <strong>平價與高互動：</strong>以百元級別的核心零件與耐用開關，做出專注於動態反應與計時的機電整合實作。
+          </div>
+        </div>
+      </section>
+
+      <!-- 單元 1：硬體工藝與電源安全 -->
+      <section id="module-hardware" class="content-module">
+        <div class="module-header">
+          <span class="module-tag">Module 01 · 生科硬體工藝</span>
+          <h2 class="module-title">外殼機構加工與電源接線要點</h2>
+          <p class="module-subtitle">生活科技手工具加工、14500 鋰電池配置與 5V 降壓保護要點</p>
+        </div>
+
+        <h3>1. 外殼與開孔加工</h3>
+        <p>為了承受學生日常按壓與反應拍擊，我們選用標準「工業級按鈕盒」，具備厚實耐用的特點：</p>
+
+        <div class="grid-2">
+          <div class="figure-card">
+            <img src="images/button_box.png" alt="工業按鈕盒">
+            <div class="figure-caption"><strong>外殼：</strong>標準單孔按鈕盒，原廠出廠開孔為 22mm。</div>
+          </div>
+          <div class="figure-card">
+            <img src="images/arcade_button.png" alt="大型發光按鈕">
+            <div class="figure-caption"><strong>按鈕：</strong>大型街機式發光按鈕，安裝軸徑需擴至約 24~25mm。</div>
+          </div>
+        </div>
+
+        <ul>
+          <li><strong>生科擴孔實作</strong>：原盒為 22mm，使用生科教室之<strong>階梯鑽 (塔鑽)</strong> 或鉸刀，以平穩轉速擴孔至 <strong>24.5mm ~
+              25mm</strong>。</li>
+          <li><strong>側邊開關孔</strong>：側身鑽 12mm 圓孔，安裝金屬自鎖開關，方便隨時關閉電源。</li>
+          <li><strong>內置固定架</strong>：使用雷射切割 3mm 木板或壓克力，製作「14500 單節電池座 + TP4056 充電模組」托盤。</li>
+        </ul>
+
+        <div class="figure-card">
+          <img src="images/p16_circuit_wiring.jpg" alt="電路內部走線">
+          <div class="figure-caption">
+            <strong>內部配置參考：</strong>電池座與 D1 mini 固定於底座，線路採集中式配置，簡潔易維護。
+          </div>
+        </div>
+
+        <h3>2. 電源接線小提醒：14500 鋰電池請接 5V 腳位</h3>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-body">
+            <div class="callout-title">電源配線注意事項</div>
+            <p>14500 單節鋰電池滿電電壓約為 <strong>4.2V</strong>（標稱 3.7V）。</p>
+            <ul>
+              <li><strong>建議接法</strong>：正極請接入 Wemos D1 mini 的 <strong><code>5V</code> (VIN) 腳位</strong>。板載的降壓晶片能平穩將 4.2V
+                降壓至穩定的 3.3V 供應主核心。</li>
+              <li><strong>避免接法</strong>：請避免將鋰電池直接焊接到 <strong><code>3.3V</code> 腳位</strong>，因為 4.2V 超過 ESP8266 額定耐壓（上限約
+                3.6V），可能導致晶片過熱受損。</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>3. 分側集中安全接線表 (三線共地技巧)</h3>
+        <p>按鈕與蜂鳴器集中在板子同一側，並利用 GPIO 輸出 <code>0V (LOW)</code> 作為<strong>虛擬接地 (Virtual Ground)</strong>，接線更單純：</p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>腳位名稱</th>
+                <th>GPIO</th>
+                <th>連接元件名稱</th>
+                <th>功能說明與軟體配置</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="badge badge-primary">D3</span></td>
+                <td>GPIO0</td>
+                <td>大按鈕微動開關 (NO)</td>
+                <td><code>INPUT_PULLUP</code>，按下接地導通</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-warning">D4</span></td>
+                <td>GPIO2</td>
+                <td>按鈕與 LED <strong>共用負極 (GND)</strong></td>
+                <td>軟體虛擬接地（常態輸出 <code>LOW 0V</code>）</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-primary">D5</span></td>
+                <td>GPIO14</td>
+                <td>按鈕內建 LED 正極 (+)</td>
+                <td>數位輸出，<code>HIGH</code> 點亮</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-primary">D6</span></td>
+                <td>GPIO12</td>
+                <td>無源蜂鳴器正極 (+)</td>
+                <td>PWM 頻率驅動 (<code>tone()</code> 發聲)</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-warning">D7</span></td>
+                <td>GPIO13</td>
+                <td>蜂鳴器負極 (GND)</td>
+                <td>虛擬接地，靜音時切為 <code>INPUT</code> 高阻抗防底噪</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-danger">5V</span></td>
+                <td>VIN</td>
+                <td>14500 電池正極 (+)</td>
+                <td>經開關輸入 3.7V~4.2V（經由 LDO 降壓保護）</td>
+              </tr>
+              <tr>
+                <td><span class="badge badge-success">GND</span></td>
+                <td>GND</td>
+                <td>14500 電池負極 (-)</td>
+                <td>電源地線回路</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">💡</div>
+          <div class="callout-body">
+            <div class="callout-title">三線式共地小技巧</div>
+            按鈕微動開關的 COM 腳與 LED 的負極在按鈕底部直接短接，只需 3 條線拉回主板（D3、D4、D5），減少組裝走線雜亂。
+          </div>
+        </div>
+      </section>
+
+      <!-- 單元 2：雙軌環境與 AI 工作流進化 -->
+      <section id="module-environment" class="content-module">
+        <div class="module-header">
+          <span class="module-tag">Module 02 · 開發流程進化</span>
+          <h2 class="module-title">開發工作流進化：從「複製貼上」到「IDE 內閉環燒錄」</h2>
+          <p class="module-subtitle">告別 Gemini 網頁與 Arduino IDE 來回切換，解鎖 Antigravity IDE + Arduino CLI 一站式 Vibe Coding</p>
+        </div>
+
+        <div class="grid-2">
+          <div class="figure-card">
+            <img src="images/slide_ai_vibe_coding.jpg" alt="AI 輔助開發流程">
+            <div class="figure-caption"><strong>現代流程：</strong>老師專注於功能邏輯與規格制定，由 AI 代理人直接在專案內建檔並呼叫燒錄。</div>
+          </div>
+          <div class="figure-card">
+            <img src="images/p07_ai_coding.jpg" alt="人機協作編程示意">
+            <div class="figure-caption"><strong>對話即建置：</strong>不用再手動複製貼上，AI 理解底層腳位後在終端機一鍵完成編譯上傳。</div>
+          </div>
+        </div>
+
+        <h3>1. 兩種工作流的體驗對比（跨時代的轉變）</h3>
+        <p>過去一年，多數老師接觸 AI 寫硬體程式，多半停留在「網頁問答」模式。這次研習我們將帶大家體驗現代軟體工程的「閉環代理人（Agentic IDE）」模式：</p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 20%;">比較面向</th>
+                <th style="width: 40%;">過渡期模式：Gemini 網頁 ＋ Arduino IDE</th>
+                <th style="width: 40%;">現代閉環模式：Antigravity IDE ＋ Arduino CLI</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>操作視窗</strong></td>
+                <td>在瀏覽器與 Arduino IDE 之間頻繁 <code>Alt + Tab</code> 切換。</td>
+                <td><strong>單一視窗一站到底</strong>：對話、程式碼編輯、終端機燒錄全在同一個畫面。</td>
+              </tr>
+              <tr>
+                <td><strong>代碼轉移</strong></td>
+                <td>手動全選、複製、貼上；遇到多檔案（如 <code>webpage.h</code>）需手動開新頁籤，極易漏貼出錯。</td>
+                <td><strong>AI 自動原地建檔</strong>：AI 根據架構自動建立資料夾、生成 <code>.ino</code> 與 <code>webpage.h</code>，完全不需手動搬磚。
+                </td>
+              </tr>
+              <tr>
+                <td><strong>編譯與燒錄</strong></td>
+                <td>老師手動點選 Arduino IDE 頂部打勾與上傳按鈕。</td>
+                <td><strong>指令背景代勞</strong>：後台透過 <code>arduino-cli</code> 直接自動編譯並上傳至指定 COM 埠。</td>
+              </tr>
+              <tr>
+                <td><strong>除錯迴圈 (Debug)</strong></td>
+                <td>抄寫下方紅色報錯 Log ➔ 切回網頁貼給 Gemini ➔ 再複製修正版 ➔ 再貼回...</td>
+                <td><strong>自動自省修復</strong>：AI 自行讀取 CLI 編譯錯誤訊息，自動修正該行代碼並再次嘗試燒錄，老師甚至不用動手。</td>
+              </tr>
+              <tr>
+                <td><strong>心流體驗</strong></td>
+                <td>人是「搬磚工」：思考一直被複製貼上與切換視窗打斷。</td>
+                <td>人是「架構師」：專注於邏輯引導，享受真正的 <strong>Vibe Coding</strong> 沉浸感。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>2. Antigravity IDE 快速安裝與起步（3 分鐘就緒）</h3>
+        <p>Antigravity 是 Google DeepMind 團隊打造的現代代理人整合開發環境（Agentic IDE），專為人機協作編程設計：</p>
+        
+        <div class="grid-2">
+          <div class="callout callout-info" style="margin: 0;">
+            <div class="callout-icon">📥</div>
+            <div class="callout-body">
+              <div class="callout-title">步驟一：安裝與登入</div>
+              <ol style="margin-left: 1.2rem; font-size: 0.9rem; line-height: 1.7; color: #334155;">
+                <li>從研習隨身碟或官方連結執行安裝檔（雙擊安裝，一路 Next）。</li>
+                <li>啟動 Antigravity，點擊右下角使用<strong>個人 Google 帳號</strong>登入（直接取用免費 Gemini 額度）。</li>
+              </ol>
+            </div>
+          </div>
+          <div class="callout callout-info" style="margin: 0;">
+            <div class="callout-icon">📂</div>
+            <div class="callout-body">
+              <div class="callout-title">步驟二：開啟研習專案資料夾</div>
+              <ol style="margin-left: 1.2rem; font-size: 0.9rem; line-height: 1.7; color: #334155;">
+                <li>點擊頂部選單 <code>File ➔ Open Folder...</code>。</li>
+                <li>選擇隨身碟或電腦中的 <code>Aiot</code> 專案資料夾，點選「選取資料夾」。</li>
+                <li>畫面左側即出現完整的專案目錄（包含各 Stage 程式碼與圖資）。</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <h3>3. 初學者必知！Antigravity 五大核心觀念（守護額度與高效協作）</h3>
+        <p>老師剛接觸 Agentic IDE 時，常把它當成一般的「聊天室」，其實它具有完全不同的運作哲學：</p>
+
+        <div class="grid-2">
+          <div class="figure-card" style="margin: 0.5rem 0;">
+            <div class="figure-caption" style="background: white;">
+              <h4 style="margin: 0 0 0.5rem 0; color: #1e293b;">👁️ 觀念一：全域上下文 (Workspace Context)</h4>
+              <p style="font-size: 0.88rem; color: #475569; line-height: 1.6;">
+                Agent 不是只看你現在貼的一行字，它能主動讀取整個 <code>Aiot</code> 資料夾內的所有 <code>.ino</code>、<code>webpage.h</code>、文件與腳位圖。你發問時只要說「請幫我修改剛才 Stage 2A 的桌號」，它就能精準定位檔案與行號，不用每次手動貼整段 Code！
+              </p>
+            </div>
+          </div>
+          <div class="figure-card" style="margin: 0.5rem 0;">
+            <div class="figure-caption" style="background: white;">
+              <h4 style="margin: 0 0 0.5rem 0; color: #1e293b;">🛠️ 觀念二：主動執行工具 (Tool Calling)</h4>
+              <p style="font-size: 0.88rem; color: #475569; line-height: 1.6;">
+                傳統 AI 只能「動嘴」給建議；Antigravity 的 Agent 擁有「能操作本機的雙手」！它能直接幫你建立新檔案、替換代碼、開啟終端機執行 <code>arduino-cli</code> 編譯並上傳。你只需下達需求與確認操作。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top: 1rem;">
+          <div class="figure-card" style="margin: 0.5rem 0;">
+            <div class="figure-caption" style="background: white;">
+              <h4 style="margin: 0 0 0.5rem 0; color: #1e293b;">⚡ 觀念三：模型選擇選 Flash（省額度不卡關）</h4>
+              <p style="font-size: 0.88rem; color: #475569; line-height: 1.6;">
+                在對話框上方模型下拉選單中，<strong>建議老師選擇 <code>Gemini 2.0 Flash</code></strong>。Flash 響應如閃電，免費帳號的每分鐘請求與每日額度上限極寬裕，寫微控制器 C++ 程式綽綽有餘，絕不會讓全班在上課中因 Pro 額度耗盡而停擺！
+              </p>
+            </div>
+          </div>
+          <div class="figure-card" style="margin: 0.5rem 0;">
+            <div class="figure-caption" style="background: white;">
+              <h4 style="margin: 0 0 0.5rem 0; color: #1e293b;">🧹 觀念四：換關卡請按「+ New Chat」開新對話</h4>
+              <p style="font-size: 0.88rem; color: #475569; line-height: 1.6;">
+                初學者常犯的錯誤是「一個對話從早聊到晚」。歷史訊息累積到下午會高達十幾萬 Token，每次發問都巨量消耗額度。<strong>良好習慣：手速賽做完要挑戰乒乓賽時，點擊右上角 <code>+ New Chat</code></strong>，既省下 90% 額度，又能讓 AI 保持思緒敏銳！
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-success" style="margin-top: 1.2rem;">
+          <div class="callout-icon">🛟</div>
+          <div class="callout-body">
+            <div class="callout-title">觀念五：終極救生圈 —— 隨時無縫降級回「Gemini 網頁版」</div>
+            <p style="font-size: 0.92rem; color: #334155; line-height: 1.7;">
+              萬一現場某位老師真的不小心把 Antigravity 免費 API 額度用盡（遇到 Rate Limit 429），完全不用慌張！<br>
+              <strong>降級解法</strong>：立刻打開上午教過的「Gemini 網頁版」（消費端服務，額度近乎無限）產出代碼 ➔ 貼回 Antigravity 存檔 ➔ 在下方終端機按一下「方向鍵 ↑」叫出上一條燒錄指令按 Enter，<strong>3 秒內無痛接軌，保證研習進度 100% 不掉隊！</strong>
+            </p>
+          </div>
+        </div>
+
+        <h3>4. 幕後英雄：認識輕量強大的 Arduino CLI</h3>
+        <p>很多老師好奇：「為什麼 Antigravity IDE 能直接幫我把程式燒進板子？」秘密就在於 <strong>Arduino CLI (Command Line Interface)</strong>：</p>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">⚡</div>
+          <div class="callout-body">
+            <div class="callout-title">把「圖形介面」化為「後台指令」</div>
+            <p>傳統 Arduino IDE 的「打勾（編譯）」與「箭頭（燒錄）」按鈕，底層本質上就是兩行簡潔的終端機指令：</p>
+            <ul>
+              <li><strong>編譯指令</strong>：<code>arduino-cli compile --fqbn esp8266:esp8266:d1_mini [專案目錄]</code></li>
+              <li><strong>上傳指令</strong>：<code>arduino-cli upload -p COM6 --fqbn esp8266:esp8266:d1_mini [專案目錄]</code></li>
+            </ul>
+            <p style="margin-top: 0.5rem; font-size: 0.92rem; color: #475569;">
+              因為變成了標準指令，Antigravity IDE 的 AI 助手就能直接調用終端機執行它。AI 不僅能幫你寫 Code，還能直接替你按下燒錄鈕！
+            </p>
+          </div>
+        </div>
+
+        <h3>5. Arduino CLI 該怎麼裝？—— 請 Agent 一鍵自動搞定！（避開手動安裝地雷）</h3>
+        <p>
+          傳統研習最大的惡夢，就是叫 20 位老師去官網下載 zip 解壓縮、找資料夾路徑、打開 Windows 系統設定「環境變數 (PATH)」，光是解決 <code>command not found</code>，早上的黃金 40 分鐘就泡湯了！
+        </p>
+        <p>
+          在 <strong>Antigravity IDE</strong> 中，安裝工具的思維徹底顛覆 —— <strong>「把環境配置當成對話需求，交給 Agent 自動完成」</strong>：
+        </p>
+
+        <!-- 一鍵裝機咒語卡片 -->
+        <div class="code-card">
+          <div class="code-header">
+            <span class="code-title">💬 給 Antigravity Agent 的「一鍵裝機與配板咒語」</span>
+            <button class="copy-btn" onclick="navigator.clipboard.writeText('請幫我檢查本機是否有 Arduino CLI，如果沒有請使用 winget 安裝，並配置 esp8266 開發板核心，完成後列出已連線的 COM port。'); alert('裝機咒語已複製！請在 Antigravity 對話框中貼上送出！');">複製咒語</button>
+          </div>
+          <pre><code>請幫我檢查本機是否有 Arduino CLI，如果沒有請使用 winget 安裝，並配置 esp8266 開發板核心，完成後列出已連線的 COM port。</code></pre>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">🤖</div>
+          <div class="callout-body">
+            <div class="callout-title">Agent 在後台自動執行的四部曲（1~2 分鐘全自動）</div>
+            <ol style="margin-left: 1.2rem; font-size: 0.92rem; color: #334155;">
+              <li><strong>自動安裝 CLI</strong>：執行 <code>winget install Arduino.arduino-cli</code>（微軟官方包管，自動加入環境變數 PATH，零失誤）。</li>
+              <li><strong>更新核心清單</strong>：自動執行 <code>arduino-cli core update-index</code>。</li>
+              <li><strong>安裝 ESP8266 核心</strong>：自動執行 <code>arduino-cli core install esp8266:esp8266</code>。</li>
+              <li><strong>偵測連線硬體</strong>：自動掃描 USB 序列埠並回報：「報告老師，環境已就緒，目前已偵測到 COM6（Wemos D1）！」</li>
+            </ol>
+          </div>
+        </div>
+
+        <h3>6. 教學轉折點：為什麼從「網頁版」切換到「Antigravity IDE 有線直燒」？</h3>
+        <div class="callout callout-warning">
+          <div class="callout-icon">💡</div>
+          <div class="callout-body">
+            <div class="callout-title">課堂現場的痛點引導心理學</div>
+            <p style="font-size: 0.92rem; line-height: 1.7; color: #334155;">
+              <strong>講師引導話術</strong>：「各位老師，剛才我們在階段一體驗了無線 OTA 隔空上傳，但大家有沒有發現：如果全班 20 位老師的筆電，每換一次韌體都要把 Wi-Fi 切去連盒子的獨立熱點，大家的筆電就會短暫<strong>斷網、無法上網問 Gemini</strong>，而且在兩個視窗之間『複製、貼上、存檔、燒錄』切來切去，手忙腳亂。<br><br>
+              所以，在我們要挑戰更進階的<strong>雙板乒乓賽</strong>與<strong>多板折返跑系統</strong>之前，我們要帶大家把 USB 線插回，換上現代工程師的最強武器 —— <strong>Antigravity IDE 沉浸式閉環開發</strong>！讓 AI 在本機直接讀檔、改檔、一鍵有線直燒，徹底解放雙手！」
+            </p>
+          </div>
+        </div>
+
+        <h3>7. 課堂安心備案：隨身免安裝包 (Portable) 的定位</h3>
+        <p>既然 Antigravity IDE 這麼方便，為什麼我們還要準備 <code>Arduino 1.8.19 Portable</code> 隨身包？</p>
+        <ul>
+          <li><strong>實體研習的環境防護</strong>：部分學校電腦教室有嚴格網管限制、或是學生機台無連外下載權限。</li>
+          <li><strong>隨插即用的安全網</strong>：約 250MB 的隨身包已預載好 ESP8266 核心與函式庫，插上隨身碟即可離線應急，確保每位老師在任何硬體限制下都能順利完成作品。</li>
+        </ul>
+      </section>
+
+      <!-- 單元 3：階段一 單板手速賽 (Gemini 網頁版 + Arduino IDE 實戰) -->
+      <section id="module-stage1" class="content-module">
+        <div class="module-header">
+          <span class="module-tag">Module 03 · 階段一</span>
+          <h2 class="module-title">單板手速挑戰賽與 Web OTA 空中無線升級 (Stage 1A & 1B)</h2>
+          <p class="module-subtitle">以「Gemini 網頁版 ＋ Arduino IDE」為核心操作工作流：從 USB 有線燒錄到空中無線上傳</p>
+        </div>
+
+        <h3>1. 課堂核心工作流：Gemini 網頁版 ＋ Arduino IDE</h3>
+        <p>在這個階段，多數老師最熟悉且最安心的操作環境是<strong>「瀏覽器 Gemini 網頁版 ＋ 傳統 Arduino
+            IDE」</strong>。我們透過標準化的雙分頁架構與直觀的按鈕操作，引導學員完成第一階段的機電整合與無線升級：</p>
+
+        <div class="grid-2">
+          <div class="card"
+            style="border: 1px solid var(--border); padding: 1.2rem; border-radius: 0.75rem; background: #fff;">
+            <div
+              style="font-weight: 800; color: var(--primary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <span>🔌 Stage 1A：單板手速賽 (有線閉環標準版)</span>
+            </div>
+            <ul style="font-size: 0.9rem; color: #475569; margin: 0; padding-left: 1.2rem; line-height: 1.6;">
+              <li><strong>教學焦點</strong>：機電整合驗證、微動開關 35ms 防抖、非阻塞蜂鳴器/LED、SSE 即時資料流。</li>
+              <li><strong>操作工作流</strong>：Gemini 生成代碼 ➔ 貼入 Arduino IDE（<code>.ino</code> ＋ <code>webpage.h</code> 雙分頁）➔
+                <strong>USB 傳輸線有線燒錄</strong>。
+              </li>
+              <li><strong>設計定位</strong>：專注於單板硬體反饋與 Web 即時通訊，奠定扎實的機電基礎。</li>
+              <li><strong>開機特徵</strong>：單聲清脆嗶聲，熱點為 <code>SpeedTapper_1A_XXXX</code>。</li>
+            </ul>
+          </div>
+
+          <div class="card"
+            style="border: 1px solid var(--border); padding: 1.2rem; border-radius: 0.75rem; background: #fff;">
+            <div
+              style="font-weight: 800; color: var(--secondary); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <span>📶 Stage 1B：解鎖 Web OTA (空中無線升級)</span>
+            </div>
+            <ul style="font-size: 0.9rem; color: #475569; margin: 0; padding-left: 1.2rem; line-height: 1.6;">
+              <li><strong>教學焦點</strong>：<strong>「把有線的燒錄，變成無線的上傳韌體！」</strong></li>
+              <li><strong>情境痛點</strong>：按鈕盒已鎖好 4 顆外殼螺絲或固定在跑道終點，每次改版插線極度痛苦。</li>
+              <li><strong>操作工作流</strong>：Gemini 擴充 OTA 代碼 ➔ Arduino IDE <strong>「匯出編譯過的二進位檔 (.bin)」</strong> ➔ 瀏覽器開啟
+                <code>/update</code> 空中上傳！
+              </li>
+              <li><strong>感官驗收</strong>：開機<strong>快閃 3 次 ＋ 演奏 Do-Mi-Sol-Do 升調音樂</strong>，一耳聽出無線升級成功！</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>2. 提示詞公式一：Stage 1A (單板手速挑戰賽 · Gemini 詠唱)</h3>
+        <p>老師複製下方結構化 Prompt，打開瀏覽器貼入 <a href="https://gemini.google.com/" target="_blank"
+            style="color:var(--primary); font-weight:700;">Gemini 網頁版</a>：</p>
+
+        <div class="code-card">
+          <div class="code-header">
+            <span class="code-title">📄 prompt_stage1a_speedtapper.md (貼給 Gemini 網頁版)</span>
+            <button class="copy-btn" onclick="copyCode(this)">複製提示詞</button>
+          </div>
+          <pre><code>你是一位精通 ESP8266 與物聯網全端互動開發的資深工程師。我想在 Arduino IDE 中開發一個「單板手速極限挑戰賽 (Speed Tapper 標準版)」專案，透過 USB 傳輸線燒錄，專注於機電整合與即時網頁互動。
+
+### 1. 硬體規範 (分側集中安全插拔)
+- D3 (GPIO0)  : 大按鈕微動開關 (INPUT_PULLUP，按下去接地 0V 導通)
+- D4 (GPIO2)  : 按鈕與 LED 共用負極 (軟體虛擬接地 0V LOW)
+- D5 (GPIO14) : 按鈕內建 LED 正極 (HIGH 點亮)
+- D6 (GPIO12) : 無源蜂鳴器正極 (tone 頻率驅動)
+- D7 (GPIO13) : 蜂鳴器負極 (軟體虛擬接地 0V LOW，靜音切換為 INPUT 高阻抗消除底噪)
+
+### 2. 雙向互動與連線機制
+- ESP8266 自建開放 SoftAP，熱點名稱格式：SpeedTapper_1A_XXXX (帶晶片後 4 碼十六進位，如 SpeedTapper_1A_A1F9)。
+- 內建 DNS 伺服器實現 Captive Portal，設定 server.onNotFound 攔截，手機連上自動彈出網頁。
+- 後端使用 ESP8266WebServer，透過 Server-Sent Events (/events) 向手機即時推播拍擊事件。
+- 伺服器預先掛載標準 /update 端點 (引用 ESP8266HTTPUpdateServer.h 並執行 httpUpdater.setup(&server, "/update"))，以利後續系統維護。
+- 網頁介面：電競暗黑風格，具備聲光自檢按鈕、即時 CPS 計數、5s/10s/15s 限時挑戰賽模式。
+
+### 3. 關鍵工程防禦
+- 蜂鳴器音效與 LED 閃爍必須採用非阻塞計時 (millis 狀態機)，嚴格避免使用 delay() 阻斷循環。
+- 按鈕加入 35ms 軟體防抖，確保每秒狂按 15 下不卡彈不漏拍。
+- 開機時發出一聲清脆單音 (2000Hz, 100ms) 提示啟動。
+
+請為我在 Arduino IDE 中產出獨立雙檔案代碼區塊：
+1. 主程式 Stage1A_SpeedTapper.ino
+2. 網頁分頁檔 webpage.h (使用 PROGMEM 存放 HTML/CSS/JS)
+並附帶清楚的中文註解與腳位說明。</code></pre>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">📝</div>
+          <div class="callout-body">
+            <div class="callout-title">Arduino IDE 操作小技巧：建立 webpage.h 分頁</div>
+            <ol>
+              <li>將 Gemini 產生的主程式貼入 Arduino IDE 主畫面。</li>
+              <li>點擊編輯器右上角倒三角形圖示 ➔ 選擇 <strong>「新增分頁 (New Tab)」</strong>。</li>
+              <li>在下方名稱輸入 <code>webpage.h</code> ➔ 按下確認。</li>
+              <li>將 Gemini 產生的 <code>webpage.h</code> 程式碼完整貼入該分頁中。</li>
+              <li>選擇開發板 <code>LOLIN(WEMOS) D1 R2 & mini</code> 與 COM 埠，點擊 <strong>「上傳 (Upload)」</strong> 燒入裝置！</li>
+            </ol>
+          </div>
+        </div>
+
+        <p><strong>專案成品路徑：</strong> <a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage1A_SpeedTapper/"
+            target="_blank" style="color: var(--primary); font-weight: 700;"><code>Aiot/Stage1A_SpeedTapper/</code></a>
+          ｜ <strong>二進位檔：</strong> <code>firmware_Stage1A.bin</code></p>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">🔩</div>
+          <div class="callout-body">
+            <div class="callout-title">教學轉折點：外殼四顆螺絲鎖緊後……痛點來了！</div>
+            <p>1A 燒錄測試完成後，講師指示學員：<strong>「好，第一階段測試通過，請大家把 14500 電池裝入電池座，並把外殼的四顆螺絲全部鎖緊，完成硬體封裝！」</strong></p>
+            <p style="margin-top:0.4rem;">封裝完成後，講師拋出課堂難題：</p>
+            <p style="margin:0.4rem 0; font-style:italic; color:#b45309;">
+              「各位老師，現在四顆螺絲都鎖緊了。但我突然覺得開機只有一聲嗶音太單調，我想把開機改成<strong>『快閃 3 下 ＋ 演奏 Do-Mi-Sol-Do 歡樂音樂』</strong>（也就是 Stage
+              1B），難道大家現在要再拿螺絲起子把四顆螺絲拆開、重新插 USB 線燒錄嗎？」
+            </p>
+            <p style="margin-top:0.5rem; font-weight:700; color:var(--primary);">
+              🎁 <strong>揭曉隱藏伏筆</strong>：「大家完全不用拿螺絲起子拆外殼！其實在剛才請 AI 寫的 1A 程式裡，AI 早就幫我們預留了一條物聯網的神級隱形通道——<strong>Web OTA
+                空中無線更新</strong>！現在只要用瀏覽器打開 <code>http://192.168.4.1/update</code>，空中發送電波就能直接把韌體換掉！」
+            </p>
+          </div>
+        </div>
+
+        <h3>3. 提示詞公式二：Stage 1B (解鎖 Web OTA 空中無線更新)</h3>
+        <p>當盒子組裝完畢、鎖緊外殼 4 顆螺絲後，我們引導學員：<strong>「如何把有線的燒錄，變成無線的上傳韌體？」</strong> 將以下 Prompt 貼給 Gemini 網頁版：</p>
+
+        <div class="code-card">
+          <div class="code-header">
+            <span class="code-title">📄 prompt_stage1b_ota_evolution.md (貼給 Gemini 網頁版)</span>
+            <button class="copy-btn" onclick="copyCode(this)">複製提示詞</button>
+          </div>
+          <pre><code>你是一位資深嵌入式工程師。請以剛才的 Stage 1A Speed Tapper 為基礎，為我修改升級為「Stage 1B (Web OTA 空中無線更新版)」。
+
+### 1. 核心升級目標：告別傳輸線，空中換韌體
+- 引入 Web OTA 機制，讓學員不用拆開螺絲、不需插 USB 線，直接透過 Wi-Fi 瀏覽器上傳新韌體！
+- 引用 ESP8266HTTPUpdateServer.h，宣告 ESP8266HTTPUpdateServer httpUpdater。
+- 在 setupWebServer() 中註冊路徑：httpUpdater.setup(&server, "/update")。
+- 在 webpage.h 網頁標題列新增「📶 Web OTA 更新頁面 (/update)」便捷按鈕。
+
+### 2. 升級感知驗證：開機燈效 ＋ 升調音樂
+- 為了讓學員在空中更新重啟後「一眼看見、一耳聽出」版本已成功切換，新增開機迎賓效果 playStartupShow()：
+  - 按鈕 LED 連續快閃 3 次 (亮 100ms / 滅 70ms)。
+  - 蜂鳴器同步演奏「Do - Mi - Sol - 高音Do」升調開機四連音 (頻率：1047Hz, 1319Hz, 1568Hz, 2093Hz)。
+- AP SSID 名稱變更為 SpeedTapper_1B_XXXX，便於直觀識別。
+
+### 3. 必須完整保留的功能
+- 完整保留大按鈕手速計數、SSE 即時資料流 (/events)、Captive Portal 彈窗與電競網頁。
+- 硬體腳位規範完全不變 (D3 按鈕、D4 虛擬地、D5 LED、D6 蜂鳴器、D7 虛擬地)。
+
+請產出修改後的 Stage1B_SpeedTapper.ino 與對應的 webpage.h。</code></pre>
+        </div>
+
+        <p><strong>專案成品路徑：</strong> <a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage1B_SpeedTapper/"
+            target="_blank" style="color: var(--primary); font-weight: 700;"><code>Aiot/Stage1B_SpeedTapper/</code></a>
+          ｜ <strong>二進位檔：</strong> <code>firmware_Stage1B.bin</code></p>
+
+        <h3>4. 課堂重頭戲：如何從 Arduino IDE 匯出 .bin 檔並進行 OTA 空中更新？</h3>
+        <p>很多老師第一次接觸 OTA 時會困惑：「平常我都是直接點上傳，那空中更新要吃什麼檔案？」答案就是 <strong>.bin 二進位檔</strong>！</p>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">💡</div>
+          <div class="callout-body">
+            <div class="callout-title">關鍵步驟：Arduino IDE 匯出編譯檔</div>
+            <p>在 Arduino IDE 中將 Stage 1B 程式碼貼好後，<strong>不要插傳輸線</strong>，直接點選頂部功能表：</p>
+            <p style="margin: 0.5rem 0; font-weight: 700; color: #047857; font-size: 1.05rem;">
+              👉【草稿碼 (Sketch)】➔【匯出編譯過的二進位檔 (Export Compiled Binary)】（快捷鍵：<code>Ctrl + Alt + S</code>）
+            </p>
+            <p style="font-size: 0.9rem; color: #475569;">
+              編譯完成後，點選【草稿碼】➔【顯示草稿碼資料夾】，就會在同一個資料夾內看見熱騰騰的 <code>Stage1B_SpeedTapper.ino.bin</code> 檔案！
+            </p>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🚀</div>
+          <div class="callout-body">
+            <div class="callout-title">告別螺絲起子！課堂 OTA 操作 4 步驟 SOP</div>
+            <ol>
+              <li><strong>連線熱點</strong>：手機或筆電 Wi-Fi 搜尋並連上原先的 <code>SpeedTapper_1A_XXXX</code>。</li>
+              <li><strong>進入更新頁面</strong>：瀏覽器輸入 <a href="http://192.168.4.1/update" target="_blank"
+                  style="font-weight:700; color:var(--primary);">http://192.168.4.1/update</a>（或點擊網頁右上角的 OTA 連結）。</li>
+              <li><strong>選取韌體檔</strong>：點擊「選擇檔案」，選取剛才在 Arduino IDE 匯出的 <code>firmware_Stage1B.bin</code>（請務必在
+                <strong>Update Firmware</strong> 區塊選取）。
+              </li>
+              <li><strong>按下 Update</strong>：等待 10~15 秒傳輸完畢，網頁顯示成功並重開機。按鈕立刻<strong>快閃 3 下＋演奏 Do-Mi-Sol-Do
+                  音樂</strong>，無線升級大功告成！</li>
+            </ol>
+            <p style="margin-top: 0.6rem; font-size: 0.9rem; color: #475569;">
+              💡 <strong>講師引導金句</strong>：「剛剛 Stage 1A 我們用傳輸線燒錄；現在 Stage 1B 盒子已經組裝好，我們完全不用拆外殼，直接把剛編譯好的 <code>.bin</code>
+              檔案丟進瀏覽器，空中發送電波——聽！重開機播放 Do-Mi-Sol-Do，這就是物聯網最迷人的 OTA 空中升級！」
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 單元 4：階段二 雙板乒乓賽 (2A 改桌號 / 2B 動態配對 + 背景 OTA) -->
+      <section id="module-stage2" class="content-module">
+        <div class="module-header">
+          <span class="module-tag">Module 04 · 階段二</span>
+          <h2 class="module-title">雙板隔空接力：乒乓賽 (Stage 2A & 2B)</h2>
+          <p class="module-subtitle">從「改桌號封包過濾」邁向「拍擊動態握手 Tap-to-Pair」——並內建背景 Web OTA 守護，全日免拆螺絲！</p>
+        </div>
+
+        <!-- 教學工作流轉場導引 -->
+        <div class="callout callout-warning">
+          <div class="callout-icon">🔌</div>
+          <div class="callout-body">
+            <div class="callout-title">教學工作流轉折：插回 USB 線，正式解鎖 Antigravity IDE 沉浸式閉環！</div>
+            <p style="font-size: 0.92rem; line-height: 1.7; color: #334155;">
+              在階段一我們掌握了單板機電與無線 OTA 的概念。但為避免頻繁切換筆電 Wi-Fi 造成斷網而無法上網問 AI，從階段二開始，我們引導老師們<strong>將 USB 線插回電腦，正式切換至 Antigravity IDE</strong>：讓 AI Agent 在專案內直接幫你讀寫代碼、終端機一鍵有線直燒，告別複製貼上，體會現代工程師零搬磚的流暢快感！
+            </p>
+          </div>
+        </div>
+
+        <div class="figure-card">
+          <img src="images/slide_d1mini_wireless_architecture.jpg" alt="D1 mini (ESP8266) 無線架構全景思維模型">
+          <div class="figure-caption">
+            <strong>講師必備思維模型：</strong>D1 mini 只有單一 2.4GHz 天線。左翼為 5 大「底層通訊水管」（SoftAP 基地台、STA 連線、ESP-NOW 2ms
+            極速射頻、混血模式、Sniffer 監聽）；右翼為「水管裡的應用服務」（WebServer、Captive Portal 彈窗、SSE 即時資料流、OTA 無線韌體更新）；特別註記「ESP8266
+            無硬體藍牙，若需藍牙請選用 ESP32」。
+          </div>
+        </div>
+
+        <div class="figure-card">
+          <img src="images/p06_espnow_nodes.jpg" alt="ESP-NOW 雙板無線節點">
+          <div class="figure-caption">
+            <strong>免路由器點對點連線：</strong>兩塊板子在 2.4GHz 頻段以低延遲直接互發射頻封包，實現隔空互控。
+          </div>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">📶</div>
+          <div class="callout-body">
+            <div class="callout-title">關鍵工程突破：雙棲混血模式 (WIFI_AP_STA)，全日免拆外殼螺絲！</div>
+            <p>很多老師擔心：「進入 ESP-NOW 雙板通訊後，沒有 Wi-Fi 網頁，那 OTA 功能怎麼辦？難道換關卡又要拆螺絲插線？」</p>
+            <p style="margin-top:0.4rem;"><strong>完全不用！</strong>我們在 Stage 2A 與 2B 的程式中，均採用了 ESP8266 獨特的
+              <code>WIFI_AP_STA</code> 雙棲模式：
+            </p>
+            <ul>
+              <li><strong>前台（硬體層）</strong>：純粹跑 <strong>ESP-NOW 射頻</strong>，兩顆盒子之間 2ms 極速互打（A 拍 B 爆閃，B 拍 A
+                爆閃），現場不需連網路，免手機干擾！</li>
+              <li><strong>後台（隱形守護）</strong>：盒子背景默默開著 Wi-Fi 熱點（例如 <code>PingPong_2A_XXXX</code>），隨時在 <code>/update</code>
+                端點待命！要升級下一關時，手機連上熱點打開 <code>/update</code> 就能直接空中灌入新韌體！</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 局一：Stage 2A 改桌號分組版 -->
+        <h3>1. 第一局：Stage 2A (手動改桌號分組版 · 入門概念)</h3>
+        <p>在進入自動配對之前，我們先讓老師理解無線通訊的「封包結構」與「軟體過濾邏輯」。同桌兩位老師打開程式碼調整同一個常數：</p>
+
+        <div class="code-card">
+          <div class="code-header">
+            <span class="code-title">Stage2A_EspNowGroupId.ino (第 41 行)</span>
+          </div>
+          <pre><code>// --------------------------- 教室桌號設定 (同桌兩位老師設相同數字) ---------------------------
+#define MY_GROUP_ID      1     // 👉 第 1 桌設 1，第 2 桌設 2，第 3 桌設 3...</code></pre>
+        </div>
+
+        <ul>
+          <li><strong>教學意義</strong>：讓老師直觀理解「程式碼裡的常數」如何影響硬體的過濾行為。</li>
+          <li><strong>封包過濾邏輯</strong>：全體發送 <code>0xFF</code> 廣播，接收端在回呼函式中判斷：
+            <pre style="margin-top:0.4rem;"><code>if (pkt->groupId != MY_GROUP_ID) return; // 非同桌號，忽略不處理
+if (pkt->senderId == myChipId) return;  // 忽略自己發出的迴音</code></pre>
+          </li>
+        </ul>
+
+        <div class="code-card">
+          <div class="code-header">
+            <span class="code-title">📄 prompt_stage2a_groupid.md (貼給 Gemini 網頁版)</span>
+            <button class="copy-btn" onclick="copyCode(this)">複製提示詞</button>
+          </div>
+          <pre><code>你是一位精通 ESP8266 與 ESP-NOW 無線通訊的嵌入式工程師。我想在 Arduino IDE 中建立一個「雙板 ESP-NOW 隔空互控接力 (改桌號分組版)」專案。
+
+### 1. 核心功能與玩法
+- 兩顆 Wemos D1 mini 盒子均設為相同的桌號 (在頂部定義 #define MY_GROUP_ID 1)。
+- 拍下【盒子 A】的大按鈕 ➔ 發出 ESP-NOW 廣播 ➔ 同桌【盒子 B】收到後【LED 爆亮 250ms + 蜂鳴器 2400Hz 鳴響 100ms】！
+- 反之，拍下【盒子 B】時，【盒子 A】也會瞬間發光發聲響應，形成雙板隔空乒乓互打！
+
+### 2. 教室防串台過濾機制
+- 封包採用全體廣播 {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}。
+- 封包自訂資料結構 (struct) 必須包含 groupId (教室桌號) 與 senderId (自身晶片 ID)。
+- 接收回呼函式 (OnDataRecv) 中：
+  1. 過濾掉 pkt->groupId != MY_GROUP_ID 的外來封包 (非同桌，不響應)。
+  2. 過濾掉 pkt->senderId == myChipId (防止收到自己發出的廣播迴音)。
+
+### 3. 背景 Web OTA 雙棲守護 (核心要求)
+- Wi-Fi 模式設為 WIFI_AP_STA，啟動 SoftAP 熱點 PingPong_2A_XXXX，頻道鎖定 Channel 1。
+- 引用 ESP8266HTTPUpdateServer.h，在背景註冊 httpUpdater.setup(&server, "/update")。
+- 在 loop() 呼叫 server.handleClient()，隨時待命接收後續空中升級。
+
+### 4. 硬體腳位規範 (分側集中安全版)
+- D3 (GPIO0)  : 按鈕微動 (INPUT_PULLUP，按下觸發)
+- D4 (GPIO2)  : 按鈕與 LED 共用負極 (軟體虛擬接地 0V LOW)
+- D5 (GPIO14) : 按鈕內建 LED 正極 (HIGH 點亮)
+- D6 (GPIO12) : 無源蜂鳴器正極 (tone 頻率驅動)
+- D7 (GPIO13) : 蜂鳴器負極 (軟體虛擬接地 0V LOW，靜音時轉 INPUT 高阻抗)
+
+請為我在 Arduino IDE 中產出單一完整檔案 Stage2A_EspNowGroupId.ino，附帶完整繁體中文註解與桌號修改指引。</code></pre>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">💡</div>
+          <div class="callout-body">
+            <div class="callout-title">同桌改桌號實作 3 步驟</div>
+            <ol>
+              <li>將 Gemini 產生的程式碼貼入 Arduino IDE。</li>
+              <li>同桌兩位老師協議好桌號（例如第 3 桌），把第 41 行改成 <code>#define MY_GROUP_ID 3</code>。</li>
+              <li>點擊「上傳」燒入兩位老師的盒子中（或按 <code>Ctrl+Alt+S</code> 匯出 <code>.bin</code> 透過 1B 的 OTA 頁面上傳）。擺在桌子兩端互相拍擊，體驗 2ms
+                極速射頻互打！</li>
+            </ol>
+          </div>
+        </div>
+
+        <p><strong>專案目錄：</strong> <a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage2A_EspNowGroupId/"
+            target="_blank"
+            style="color: var(--primary); font-weight: 700;"><code>Aiot/Stage2A_EspNowGroupId/</code></a> ｜
+          <strong>二進位檔：</strong> <code>firmware_Stage2A.bin</code>
+        </p>
+
+        <!-- 轉折點：換隊友痛點 -->
+        <div class="callout callout-warning">
+          <div class="callout-icon">🔄</div>
+          <div class="callout-body">
+            <div class="callout-title">教學轉折點：如果全班要隨機大換桌、交換隊友？</div>
+            <p>「各位老師，手動改桌號很好理解，但如果現在大家要全班換隊友、或者跨桌競賽，難道大家又要回到電腦前改 Code 重新燒錄一次嗎？市面上的藍牙耳機買來，難道需要接電腦改耳機編號嗎？」</p>
+            <p style="margin-top:0.4rem; font-weight:700; color:var(--primary);">
+              👉 自然引導進入 Stage 2B：全班燒錄同一份程式碼，兩顆盒子開機碰一下按鈕，自動握手綁定 MAC 位址！
+            </p>
+          </div>
+        </div>
+
+        <!-- 局二：Stage 2B 拍擊動態配對 Tap-to-Pair -->
+        <h3>2. 第二局：Stage 2B (拍擊動態配對 Tap-to-Pair · 工程進階)</h3>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>比較面向</th>
+                <th>手動改桌號 / 寫死 MAC (常見做法)</th>
+                <th>拍擊動態配對 Tap-to-Pair (本次實作)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>操作步驟</strong></td>
+                <td>每組需在程式碼中修改各自的桌號或填入對方 MAC，再分別燒錄。</td>
+                <td>全班燒錄同一份程式碼，開機後同桌互拍一下按鈕即可完成配對。</td>
+              </tr>
+              <tr>
+                <td><strong>課堂適用性</strong></td>
+                <td>適合用來說明封包結構與過濾概念，操作步驟較多。</td>
+                <td>操作簡便，適合多人課堂快速展開活動，且可隨時長按解除重新配對。</td>
+              </tr>
+              <tr>
+                <td><strong>主要特點</strong></td>
+                <td>邏輯直觀純粹，直接反映底層通訊設定。</td>
+                <td>貼近消費級產品的操作體驗，透過狀態機自動處理握手。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🏓</div>
+          <div class="callout-body">
+            <div class="callout-title">動態配對狀態機 (FSM) 運作流程：WPS 雙向確認窗口（防搶親機制）</div>
+            <ol>
+              <li><strong>開機（未配對待命 STATE_IDLE_UNPAIRED）</strong>：外接 LED 呈現 600ms 慢閃呼吸燈。此時<strong>啟動防搶親保護，完全不理會任何外來配對廣播</strong>。</li>
+              <li><strong>雙向配對窗口（「3、2、1 拍！」）</strong>：同桌兩位老師相約各自拍一下按鈕，兩台盒子進入 3.5 秒急促快閃求偶窗口 (STATE_PAIRING_WINDOW)。<strong>唯有雙方同時處在配對窗口</strong>，兩台才會在 10ms 內握手交換 MAC，同時發出清脆「嗶-嗶」雙短音並熄滅燈號鎖定！</li>
+              <li><strong>接力互控（STATE_PAIRED）</strong>：平時 LED 熄滅待命。拍 A 盒 ➔ 定向射頻單播給隊友 MAC ➔ B 盒爆閃鳴叫；拍 B 盒 ➔ A 盒爆閃鳴叫。僅響應已綁定的唯一隊友 MAC，全班 20 桌同時狂按零干擾！</li>
+              <li><strong>長按解除配對</strong>：按住按鈕 <strong>2.5 秒不放</strong>，發出降調音效並清除隊友 MAC，重回慢閃待命，方便隨時換組重新配對！</li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- 研習現場射頻工程深度探討 -->
+        <h3>3. 課堂實戰深度探討：全班 20 桌同時配對，如何做到「絕對不搶親」？</h3>
+        <p>
+          在現場教學設計中，這是一個極具深度的真實工程思考題：「如果 20 位老師的盒子都在開機待命，其中一個人拍下按鈕，會發生什麼事？」
+        </p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 25%;">配對防護機制</th>
+                <th style="width: 35%;">技術原理與潛在風險</th>
+                <th style="width: 40%;">教學現場體驗與結論</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>盲配廣播（無防禦）</strong></td>
+                <td>A 盒一按即大聲公廣播，全班只要收到的人都直接綁定。</td>
+                <td><strong>❌ 容易混亂</strong>：全場多台盒子同時搶答回覆，A 盒被別桌「搶親」，現場陷入配對混亂。</td>
+              </tr>
+              <tr>
+                <td><strong>近場 RSSI 強度過濾</strong></td>
+                <td>只允許訊號強度極強（如 <code>RSSI &gt; -45dBm</code>）的近距離封包配對。</td>
+                <td><strong>⚠️ 物理翻車風險</strong>：人手覆蓋按鈕會嚴重吸收 2.4GHz 電磁波（衰減 10~15dBm），加上天線角度與金屬電池遮蔽，常出現「兩台明明貼在一起卻配不上」的窘境。</td>
+              </tr>
+              <tr>
+                <td><strong>WPS 雙向確認窗口<br><span style="color:var(--success); font-weight:700;">★ 本次採用最佳解</span></strong></td>
+                <td>未被主人按下時保持高冷待命（完全無視外來請求）；同桌兩位老師相約「3、2、1 拍！」，兩台各自進入 3.5 秒快閃求偶窗口，唯有雙方同時處於窗口內才交換 MAC 鎖定。</td>
+                <td><strong>✅ 100% 穩定且直覺</strong>：不管手掌怎麼擋、不管距離多遠，只要雙方主人同時按下授權，10ms 內瞬間鎖定彼此 MAC，全班 20 桌同時喊拍也絕不串台！</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="code-card">
+          <div class="code-header">
+            <span class="code-title">📄 prompt_stage2b_autopair.md (貼給 Gemini 網頁版 · WPS 雙向配對防搶親版)</span>
+            <button class="copy-btn" onclick="copyCode(this)">複製提示詞</button>
+          </div>
+          <pre><code>你是一位精通嵌入式物聯網、人機互動 (HCI) 與 ESP-NOW 協定的資深系統架構師。我想在 Arduino IDE 中為國中科技研習設計一個「ESP-NOW 雙板拍擊動態配對接力 (Tap-to-Pair · WPS 雙向確認窗口版)」專案。
+
+### 1. 核心需求（零改 Code、WPS 雙向確認防搶親）
+- 全班 20 桌 40 顆盒子【燒錄完全相同的一份程式碼】，不需手動修改任何桌號與 MAC！
+- 【狀態一：未配對待命 (STATE_IDLE_UNPAIRED)】：
+  - 開機後外接 LED 慢閃 (600ms 翻轉一次) 待命。
+  - 【核心防護機制】：在此狀態下【完全忽視】任何外來的配對請求廣播，絕不被全班其他桌搶親！
+- 【狀態二：配對求偶窗口 (STATE_PAIRING_WINDOW)】：
+  - 同桌兩位老師相約「3、2、1 拍！」，各自拍一下自己的按鈕。
+  - 拍下後進入 3.5 秒求偶窗口，LED 轉為急促快閃 (100ms 翻轉一次) ＋ 嗶一短聲 (1500Hz 60ms)。
+  - 窗口期間每 250ms 廣播 MSG_PAIR_REQ 封包（夾帶自身 MAC 位址）。
+  - 【雙向握手鎖定】：唯有收到另一台【同樣處於求偶窗口中】的請求時，雙方在 10ms 內交換彼此 MAC，呼叫 esp_now_add_peer()。
+  - 兩台同時響起清脆的「雙短音上升音 (嗶-嗶 2000Hz->2600Hz)」且 LED 熄滅 ➔ 進入已配對鎖定狀態！
+  - 若 3.5 秒內無人回應，發出低音頓音提示 (700Hz 150ms)，自動退回慢閃待命。
+- 【狀態三：已配對對打 (STATE_PAIRED)】：
+  - 平時 LED 熄滅待命。
+  - 拍 A 盒 ➔ 定向單播發送 MSG_TRIGGER 給隊友 MAC ➔ B 盒 LED 爆閃 250ms ＋ 蜂鳴器 2400Hz 鳴響 110ms！
+  - 接收端嚴格只認綁定的隊友 MAC，全班 20 桌同時狂按對打絕不干擾！
+- 【解除配對機制】：
+  - 按住按鈕 2.5 秒（長按），播放向下三長音，向對方發送 MSG_UNPAIR 並清除隊友 MAC，兩台重回慢閃待命，隨時可換隊友。
+
+### 2. 背景 Web OTA 雙棲守護 (全日免拆外殼螺絲)
+- Wi-Fi 模式設為 WIFI_AP_STA，啟動 SoftAP 熱點 PingPong_2B_XXXX，頻道鎖定 Channel 1。
+- 引用 ESP8266WebServer.h 與 ESP8266HTTPUpdateServer.h，在背景註冊 httpUpdater.setup(&server, "/update")。
+- 在 loop() 呼叫 server.handleClient()，隨時待命接收空中無線更新。
+
+### 3. 硬體腳位規範 (分側集中安全版)
+- D3 (GPIO0)  : 按鈕微動 (INPUT_PULLUP)
+- D4 (GPIO2)  : 按鈕/LED 共用負極 (軟體虛擬接地 0V LOW)
+- D5 (GPIO14) : 按鈕 LED 正極 (HIGH 點亮)
+- D6 (GPIO12) : 蜂鳴器正極 (tone 頻率驅動)
+- D7 (GPIO13) : 蜂鳴器負極 (軟體虛擬接地 0V LOW，靜音時轉 INPUT 高阻抗)
+
+### 4. 關鍵工程防禦
+- 按鈕防抖 40ms，長按 2500ms 判斷，全非阻塞計時驅動。
+
+請產出架構清晰、具備完整繁體中文註解的單一檔案 Stage2B_EspNowAutoPair.ino。</code></pre>
+        </div>
+
+        <p><strong>專案目錄：</strong> <a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage2B_EspNowAutoPair/"
+            target="_blank"
+            style="color: var(--primary); font-weight: 700;"><code>Aiot/Stage2B_EspNowAutoPair/</code></a> ｜
+          <strong>二進位檔：</strong> <code>firmware_Stage2B.bin</code>
+        </p>
+      </section>
+
+      <!-- 單元 5：階段三 折返跑系統 (ArenaPod) -->
+      <section id="module-future" class="content-module">
+        <div class="module-header">
+          <span class="module-tag">Module 05 · 階段三 (終極競技)</span>
+          <h2 class="module-title">體育競技三部曲終章：ArenaPod 電子折返跑無線計時系統 (Stage 3A & 3B)</h2>
+          <p class="module-subtitle">從「平權雙板對打」躍升為「星狀主從網格 (Master-Slave)」——校園體適能與敏捷反應科技大秀</p>
+        </div>
+
+        <div class="figure-card">
+          <img src="images/p01_shuttle_system.jpg" alt="ArenaPod 折返跑系統情境示意">
+          <div class="figure-caption">
+            <strong>活動場域情境：</strong>中央裁判端 (Master) 作為發令大腦與衝線終點，折返點 (Slave) 作為引導光標。手機或大電視即時顯示毫秒級成績與排行榜。
+          </div>
+        </div>
+
+        <h3>1. 教學架構的躍遷：從「平權」到「主從大腦」</h3>
+        <p>
+          在階段二的乒乓賽中，兩顆盒子是平等的點對點通訊。但在正式的體能競賽中，我們需要一個<strong>「中央裁判大腦 (Master)」</strong>來負責發令倒數、抓犯規、毫秒計時與推播成績；周遭的盒子則是<strong>「敏捷觸摸點 (Slave)」</strong>，專心接收指令發光並回傳踩線：
+        </p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 20%;">比較維度</th>
+                <th style="width: 40%;">階段二：乒乓賽 (ESP-NOW 2A/2B)</th>
+                <th style="width: 40%;">階段三：折返跑系統 (ArenaPod 3A/3B)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>拓撲結構</strong></td>
+                <td>對等點對點 (Peer-to-Peer)</td>
+                <td><strong>星狀主從網格 (Star / Master-Slave)</strong></td>
+              </tr>
+              <tr>
+                <td><strong>節點角色</strong></td>
+                <td>兩台完全相同（平權）</td>
+                <td><strong>Master 裁判大腦 ＋ Slave 敏捷手腳</strong></td>
+              </tr>
+              <tr>
+                <td><strong>裁決中心</strong></td>
+                <td>各自響應，無全局狀態</td>
+                <td><strong>Master 統籌所有規則</strong>：下一顆該亮誰、誰犯規、幾分幾秒衝線全由大腦裁決。</td>
+              </tr>
+              <tr>
+                <td><strong>人機介面</strong></td>
+                <td>實體按鈕與蜂鳴器</td>
+                <td><strong>實體按鈕 ＋ 手機/大電視 Web 即時戰情看板 (SSE)</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <hr style="margin: 2.5rem 0; border: none; border-top: 1px solid var(--border);">
+
+        <!-- 局一：Stage 3A 雙板通用多趟折返跑 -->
+        <h3>2. 第一部曲：Stage 3A —— 雙板通用直線多趟折返跑 (誰發起誰是 Master ＋ 0ms 零時差)</h3>
+        <p>
+          同桌兩位老師桌上各有一台 Wemos D1 mini。為了維持極致純粹的研習體驗，我們設計了<strong>「單一通用韌體 (Single Universal Firmware)」</strong>：全班燒錄完全相同的程式碼，<strong>由「誰先發起配對」動態決定誰是起點裁判大腦！</strong>並在經歷實戰驗證後，全面解鎖四大極限工程優化：
+        </p>
+
+        <div class="grid-2" style="margin-bottom: 1.5rem;">
+          <div class="callout callout-success">
+            <div class="callout-icon">⚡</div>
+            <div class="callout-body">
+              <div class="callout-title">0ms 瞬間起跑 (Falling Edge Trigger)</div>
+              <p style="font-size: 0.9rem; line-height: 1.6; color: #334155;">
+                揮別「按鈕放開才計時」的遲滯感！採用下壓瞬間（<code>HIGH ➔ LOW</code>）微秒級捕捉 <code>millis()</code>；發令槍聲改為非阻塞背景音效，手按下去的第 1 個微秒碼表立刻起跑，完全不需等待聲音結束！
+              </p>
+            </div>
+          </div>
+
+          <div class="callout callout-info">
+            <div class="callout-icon">📶</div>
+            <div class="callout-body">
+              <div class="callout-title">全場唯一熱點 ＋ Captive Portal 自動彈窗</div>
+              <p style="font-size: 0.9rem; line-height: 1.6; color: #334155;">
+                配對成功後，Master 專屬熱點自動更名為 <code>Shuttle_MASTER</code>，Slave 則<strong>主動關閉自身的熱點</strong>！手機連上唯一熱點後，DNS 劫持自動彈出電競碼表網頁，免手動輸入 IP！
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-warning" style="margin-bottom: 1.5rem;">
+          <div class="callout-icon">🎯</div>
+          <div class="callout-body">
+            <div class="callout-title">支援中小學體適能：自訂多趟折返跑 (1次/2次/3次/4次)</div>
+            <p style="font-size: 0.9rem; line-height: 1.6; color: #334155;">
+              教育部體適能 10 公尺折返跑標準為 <strong>2 次折返（共 4 趟）</strong>。網頁上提供 <code>[ 1次 (2趟) ]</code>、<code>[ 2次 (4趟) ]</code>、<code>[ 3次 (6趟) ]</code>、<code>[ 4次 (8趟) ]</code> 快速切換按鈕！奇數趟 Slave 80ms 爆閃導引去程，偶數趟 Master 80ms 爆閃導引回程，動態產出每趟分段成績與總成績卡片！
+            </p>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">🏃</div>
+          <div class="callout-body">
+            <div class="callout-title">Stage 3A 角色指派與多趟折返流暢體驗 SOP</div>
+            <ol>
+              <li><strong>開機未配對（慢閃 600ms）</strong>：兩台開機皆為未配對待命，熱點為 <code>Shuttle_待配對_XXXX</code>。</li>
+              <li><strong>誰先拍誰是 Master</strong>：起點老師拍一下【A 盒】➔ A 盒宣告我是 Master（100ms 急促快閃）；折返點老師在 3.5 秒內拍一下【B 盒】➔ B 盒確認成為 Slave！兩台同時「嗶-嗶」雙短音鎖定！</li>
+              <li><strong>鎖定後聲光與熱點自動整併</strong>：
+                <ul>
+                  <li><strong>Master (起點盒 Pod 0)</strong>：LED 轉為<strong>恆亮 (Solid ON)</strong> 代表起點就緒，熱點更名為 <strong><code>Shuttle_MASTER</code></strong>。</li>
+                  <li><strong>Slave (折返點盒 Pod 1)</strong>：LED 轉為<strong>熄滅 (OFF)</strong> 待命中，自身熱點完全關閉隱藏，全場只有唯一熱點！</li>
+                </ul>
+              </li>
+              <li><strong>連線與設定趟數</strong>：手機 Wi-Fi 連線 <code>Shuttle_MASTER</code>，螢幕自動彈出競技碼表；老師可在網頁頂部點選 <code>[ 2次 (4趟) ]</code>。</li>
+              <li><strong>比賽展開 (0ms 即刻起跑)</strong>：
+                <ul>
+                  <li>拍下起點盒（或手機按 GO）：<strong>0ms 瞬間起跑！</strong>起點盒熄滅，手機碼表飛奔，折返點 Slave <strong>80ms 爆亮快閃</strong> 引導選手衝刺！</li>
+                  <li>第 1 趟拍下折返點 ➔ Slave 立即熄滅 + 清脆嗶聲回傳，起點 Master <strong>80ms 爆亮快閃</strong> 引導衝回！</li>
+                  <li>第 2 趟拍下起點盒 ➔ 若設定 2 次折返，Master 嗶一短聲自動切換回 Slave 爆閃，選手繼續折返衝刺！</li>
+                  <li>最終趟拍下起點衝線 ➔ 鳴響三連音勝利慶祝！手機動態卡片完整列出【第 1 次去程、第 1 次回程、第 2 次去程、第 2 次衝線】每一趟分段成績與總成績！</li>
+                </ul>
+              </li>
+              <li><strong>長按換隊友</strong>：任一台按鍵長按 2.5 秒解除綁定，重回慢閃未配對狀態。</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="code-card">
+          <div class="code-header">
+            <span class="code-title">📄 prompt_stage3a_shuttlerun.md (貼給 Gemini 網頁版 · 競技級多趟通用折返跑)</span>
+            <button class="copy-btn" onclick="copyCode(this)">複製提示詞</button>
+          </div>
+          <pre><code>你是一位精通物聯網體育科技、人機互動 (HCI) 與 ESP-NOW 協定的資深系統架構師。我想在 Arduino IDE 中為國中科技研習設計一個「雙板通用競技級多趟折返跑 (Single Universal Code · 0ms瞬間起跑 · 誰先按誰是主)」專案。
+
+### 1. 核心需求（單一通用程式碼、誰先按誰是主）
+- 兩顆 Wemos D1 mini 燒錄【完全相同的一份程式碼】，不需修改任何參數與 MAC！
+- 【角色動態指派機制】：
+  - 開機未配對待命時，LED 慢閃 (600ms)。
+  - 第一個人拍下按鈕 ➔ 宣告成為 Master (起點 / Pod 0)，LED 轉為急促快閃 (100ms)，窗口 3.5 秒內廣播 MSG_PAIR_REQ_MASTER。
+  - 第二個人在 3.5 秒內拍下按鈕 ➔ 自動指派為 Slave (折返點 / Pod 1)，回覆 MSG_PAIR_SLAVE_ACK。
+  - 兩台同時響起「雙短音上升音 (嗶-嗶 2000Hz->2600Hz)」完成配對！
+- 【配對後熱點整併與 Captive Portal】：
+  - Master (起點)：LED 保持【恆亮 (Solid ON)】代表起點準備就緒；SoftAP 熱點自動命名為 Shuttle_MASTER。
+  - Slave (折返點)：LED 保持【熄滅 (OFF)】待命；【主動關閉自身 AP (WiFi.softAPdisconnect(true))】，全場只有唯一的 Shuttle_MASTER 熱點！
+  - 引入 DNSServer.h 啟動 Port 53 DNS 劫持，攔截 /generate_204、/hotspot-detect.html 與 onNotFound，手機一連上 Wi-Fi 自動彈出全螢幕電競碼表網頁！
+
+### 2. 競技級 0ms 瞬間起跑與自訂多趟折返
+- 【0ms 瞬間計時 (Falling Edge)】：
+  - 改用按鈕下壓瞬間 (reading == LOW && lastButtonReading == HIGH) 觸發，絕不等待按鈕放開 (Release)！
+  - 起跑瞬間第一時間捕捉 raceStartTime = millis()，SSE 立即推播網頁碼表飛奔，發令槍聲改為非阻塞 playTone(2200, 150)，絕不使用 delay 阻塞碼表！
+- 【自訂多趟折返 (targetLaps)】：
+  - 預設 1 次折返 (去回 2 趟)，網頁可設定 1~4 次折返 (2~8 趟單程)。
+  - 奇數趟 (1, 3, 5...)：Slave 80ms 爆亮快閃引導去程，拍下後 0ms 熄滅回報分段成績。
+  - 偶數趟 (2, 4, 6...)：Master 80ms 爆亮快閃引導回程；拍下後若尚未完賽，Master 嗶一短聲並自動觸發下一趟 Slave 爆閃；若為最後一趟則完賽衝線！
+  - 完賽衝線：兩台同步播放三連音勝利慶祝，網頁動態呈現每一趟分段成績與總成績卡片！
+- 【長按解除機制】：
+  - 任何一台按鈕長按 2.5 秒，發送 MSG_UNPAIR 並清除 MAC，兩台重新回到慢閃未配對狀態。
+
+### 3. 背景 Web OTA 守護 (WIFI_AP_STA)
+- 在背景掛載 ESP8266HTTPUpdateServer 於 /update，全日免拆外殼。
+
+### 4. 硬體腳位規範 (分側集中安全版)
+- D3 (GPIO0)  : 按鈕微動 (INPUT_PULLUP)
+- D4 (GPIO2)  : 按鈕/LED 共用負極 (軟體虛擬接地 0V LOW)
+- D5 (GPIO14) : 按鈕 LED 正極 (HIGH 點亮)
+- D6 (GPIO12) : 蜂鳴器正極 (tone 頻率驅動)
+- D7 (GPIO13) : 蜂鳴器負極 (軟體虛擬接地 0V LOW，靜音時轉 INPUT 高阻抗)
+
+請產出完整的 Stage3A_ShuttleRun.ino 與包含動態分段卡片、趟數切換晶片鈕的精美 webpage.h。</code></pre>
+        </div>
+
+        <p><strong>專案目錄：</strong> <a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage3A_ShuttleRun/"
+            target="_blank"
+            style="color: var(--primary); font-weight: 700;"><code>Aiot/Stage3A_ShuttleRun/</code></a> ｜
+          <strong>二進位檔：</strong> <code>firmware_Stage3A.bin</code>
+        </p>
+
+        <hr style="margin: 2.5rem 0; border: none; border-top: 1px solid var(--border);">
+
+        <!-- 局二：Stage 3B 四點跨桌循序闖關跑 -->
+        <h3>3. 第二部曲：Stage 3B —— 四點跨桌循序闖關跑 (1 ➔ 2 ➔ 3 ➔ 4 ➔ 1 ➔ 2 ➔ 3 ➔ 4)</h3>
+        <p>
+          當同桌兩人玩過直線折返跑後，研習進入終極高潮——<strong>「兩兩老師大合體」</strong>！兩組共 4 顆盒子組成一個敏捷障礙闖關跑道。此階段採用<strong>「主從分開架構 (Master-Slave Distinct Architecture)」</strong>，分工明確、各司其職：
+        </p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 20%;">負責老師</th>
+                <th style="width: 25%;">硬體分配</th>
+                <th style="width: 25%;">燒錄韌體專案</th>
+                <th style="width: 30%;">角色任務說明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td rowspan="2"><strong>A 老師 (組長桌)</strong></td>
+                <td>第 1 顆盒子</td>
+                <td><span class="badge badge-primary">Stage3B_Master</span></td>
+                <td><strong>起點裁判大腦 (Pod #0 / 1 號)</strong>：架設 Wi-Fi AP、Captive Portal、網頁戰情看板、發令計時、順序裁決與成績排行榜。</td>
+              </tr>
+              <tr>
+                <td>第 2 顆盒子</td>
+                <td><span class="badge badge-warning">Stage3B_Slave</span></td>
+                <td><strong>關卡 1 敏捷盒 (Pod #1 / 2 號)</strong>：專職接收爆閃指令引導選手，被拍擊時 0ms 滅燈回報。</td>
+              </tr>
+              <tr>
+                <td rowspan="2"><strong>B 老師 (夥伴桌)</strong></td>
+                <td>第 3 顆盒子</td>
+                <td><span class="badge badge-warning">Stage3B_Slave</span></td>
+                <td><strong>關卡 2 敏捷盒 (Pod #2 / 3 號)</strong>：專職接收爆閃指令引導選手，被拍擊時 0ms 滅燈回報。</td>
+              </tr>
+              <tr>
+                <td>第 4 顆盒子</td>
+                <td><span class="badge badge-warning">Stage3B_Slave</span></td>
+                <td><strong>關卡 3 敏捷盒 (Pod #3 / 4 號)</strong>：專職接收爆閃指令引導選手，被拍擊時 0ms 滅燈回報。</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-icon">🛡️</div>
+          <div class="callout-body">
+            <div class="callout-title">關鍵難題突破：全班 20 桌同時上線，多顆配對如何絕不混淆？</div>
+            <p style="margin-bottom: 0.6rem;">
+              在多節點物聯網教室中，最怕「A 老師的 Master 收到了隔壁桌 C 老師拍的盒子」。Stage 3B 採用了<strong>「三重防搶親防禦機制」</strong>：
+            </p>
+            <ol>
+              <li><strong>第一重：同桌專屬桌號 (Group ID / Room Code)</strong>：
+                每組 Master 有獨立的 Group ID（例如第 1 組、第 2 組...，亦可在網頁一鍵自訂 1~99）。所有非本組封包在底層 0.01ms 瞬間丟棄！
+              </li>
+              <li><strong>第二重：主動拍擊收編窗口 (Tap-to-Enroll · 絕不搶親)</strong>：
+                <ul>
+                  <li>未收編的 Slave 開機處於慢閃心跳待命，<strong>完全不主動發送廣播</strong>，絕不干擾全班。</li>
+                  <li>A 老師在 Master 手機網頁點擊<strong>「➕ 拍擊收編新盒子」</strong>，Master 開啟 15 秒授權窗口。</li>
+                  <li>此時 A 老師拿起要當 Pod 1 的盒子拍一下 ➔ Master 立即捕捉其 MAC 並指派為 <strong>Pod #1</strong>！</li>
+                  <li>接著點擊收編，B 老師拍他的第 1 顆盒子 ➔ 立即收編為 <strong>Pod #2</strong>！</li>
+                  <li>接著點擊收編，B 老師拍他的第 2 顆盒子 ➔ 立即收編為 <strong>Pod #3</strong>！</li>
+                  <li><strong>收編成功的 Slave 自動繼承 Master 的 Group ID 與 MAC，從此死心塌地只認這位 Master！</strong></li>
+                </ul>
+              </li>
+              <li><strong>第三重：實體雷達點名核對 (Blink-to-Find)</strong>：
+                Master 網頁上可點擊「💡 測試 Pod #1 / #2 / #3」，全場只有該盒子狂閃蜂鳴 2 秒，老師在盒子貼上「1、2、3、4」貼紙，依序在地上排開，地上絕對不擺錯！
+              </li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-icon">⚡</div>
+          <div class="callout-body">
+            <div class="callout-title">闖關跑競技流程與防作弊裁決機制 (1 ➔ 2 ➔ 3 ➔ 4 ➔ 1 ➔ 2 ➔ 3 ➔ 4)</div>
+            <ol>
+              <li><strong>起點就緒 (IDLE)</strong>：
+                起點 Master (Pod 0 / 1號) <strong>燈光恆亮</strong>；全場子機 (Pod 1~3 / 2~4號) <strong>心跳快閃 (1000ms 雙拍脈衝)</strong> 宣告在線待命。
+              </li>
+              <li><strong>起跑發令 (START)</strong>：
+                拍下起點盒 (1號) 或手機網頁按 GO ➔ 起點燈立即熄滅，手機碼表毫秒級起跑！
+              </li>
+              <li><strong>關卡接力爆閃引導 (STRIKE SEQUENCE)</strong>：
+                <ul>
+                  <li><strong>第 1 關</strong>：全場只有 <strong>Pod 1 (2號盒) 80ms 爆亮快閃</strong>，其餘節點全滅！選手奔去拍下 2 號 ➔ 2 號 0ms 熄滅發出確認嗶聲，記錄分段 1！</li>
+                  <li><strong>第 2 關</strong>：全場只有 <strong>Pod 2 (3號盒) 80ms 爆亮快閃</strong>！選手奔去拍下 3 號 ➔ 3 號 0ms 熄滅發出確認嗶聲，記錄分段 2！</li>
+                  <li><strong>第 3 關</strong>：全場只有 <strong>Pod 3 (4號盒) 80ms 爆亮快閃</strong>！選手奔去拍下 4 號 ➔ 4 號 0ms 熄滅發出確認嗶聲，記錄分段 3！</li>
+                  <li><strong>衝回起點衝線</strong>：全場只有 <strong>Pod 0 (1號盒) 80ms 爆亮快閃</strong>！選手撲回起點拍下 ➔ 衝線完賽！</li>
+                </ul>
+              </li>
+              <li><strong>抓犯規防作弊 (Anti-Cheat Arbiter)</strong>：
+                若選手搶快抄捷徑（例如目標是 2 號，卻跑去拍 3 號或 4 號）：拍錯的盒子立即發出 <strong>250Hz 低頻粗糙警告音</strong> 並記犯規一次；<strong>當前正確目標持續維持 80ms 爆閃</strong>，逼選手回頭拍正確按鈕！
+              </li>
+              <li><strong>多圈循環支援</strong>：
+                若設定跑 2 圈（共 8 趟），衝過 1 號時記錄第 1 圈時間，2 號立刻又開始爆閃展開第 2 圈，直到最後衝回 1 號才響起三連音完賽慶祝！
+              </li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- 提示詞卡片一：Master 主控大腦 -->
+        <div class="code-card">
+          <div class="code-header">
+            <span class="code-title">📄 prompt_stage3b_master.md (貼給 Gemini 網頁版 · 主控網關大腦)</span>
+            <button class="copy-btn" onclick="copyCode(this)">複製提示詞</button>
+          </div>
+          <pre><code>你是一位精通物聯網體育科技、星狀通訊網格 (Star Mesh) 與 ESP-NOW 協定的資深系統架構師。我想在 Arduino IDE 中為國中科技研習設計一個「ArenaPod 四點跨桌闖關跑主控大腦 (Stage 3B Master Gateway · 異步隊列版)」專案。
+
+### 1. 系統定位與架構
+- 本機專任【中央智慧裁判大腦 (Master Arbiter / Pod #0)】，統籌比賽發令、目標切換、防混淆收編、毫秒計時、防作弊抓犯規與網頁看板。
+- 周遭連線 3 顆極簡子機 (Pod #1, Pod #2, Pod #3)，組成四點循序跑道 (1 ➔ 2 ➔ 3 ➔ 4 ➔ 1 ➔ 2 ➔ 3 ➔ 4)。
+
+### 2. 多節點防混淆收編 (Tap-to-Enroll)
+- 具備 16-bit 房間桌號 config.groupId (預設 1，網頁可改 1~99)，封包底層過濾。
+- 網頁提供「➕ 拍擊收編新盒子」按鈕，開啟 15 秒收編窗口 (isEnrollWindowOpen = true)。
+- 窗口開啟期間，周遭任一子機拍下按鈕送出 MSG_PAIR_REQ 時，Master 捕獲其 MAC 與 ChipId，指派為 Pod #1 / #2 / #3，回傳 MSG_PAIR_ACK。
+- 支援「實體雷達點名 (Blink-to-Find)」：網頁點擊測試指定 Pod，發送 MSG_TEST_BLINK 令該盒子蜂鳴快閃 2 秒。
+
+### 3. 闖關跑循序裁決與防作弊
+- 運動拓撲模式設為四點循序跑 (TRACK_SQUARE)：0 ➔ 1 ➔ 2 ➔ 3 ➔ 0。
+- 起跑：拍下 Pod 0 或網頁按 GO，0ms 起跑，發送 MSG_START_RACE，首個目標 Pod #1 開始 80ms 爆亮快閃，其餘熄滅。
+- 拍擊裁決：
+  - 【拍對目標】：記錄分段成績，計算下一目標 Pod，廣播 MSG_LAP_UPDATE 令上一目標滅燈、下一目標開始 80ms 快閃！
+  - 【拍錯按鈕】：發送 MSG_ERROR_BUZZ (250Hz) 給違規子機，記犯規次數，正確目標維持 80ms 快閃不變！
+  - 【完賽衝線】：最後一趟拍下 Pod 0，廣播 MSG_FINISH_RACE，演奏勝利號角，大看板結算成績。
+
+### 4. 異步事件隊列 (Zero Interrupt Delay)
+- onDataRecv() 僅做原子級標記 hasPendingHit 與 pendingHitPodId，所有裁決、無線廣播與 SSE 推播 100% 在 loop() 內完成，杜絕中斷阻塞！
+
+### 5. 網頁看板與 Captive Portal
+- SoftAP 熱點 ArenaPod_Master，Port 53 DNS 劫持，連上自動彈出全螢幕看板。
+- SSE 多端推播 (/events)，支援 4 台裝置同時在線同步碼表。
+
+### 6. 硬體腳位規範 (分側集中安全版)
+- D3 (GPIO0)  : 按鈕微動 (INPUT_PULLUP)
+- D4 (GPIO2)  : 按鈕/LED 共用負極 (軟體虛擬接地 0V LOW)
+- D5 (GPIO14) : 按鈕 LED 正極 (HIGH 點亮)
+- D6 (GPIO12) : 蜂鳴器正極 (tone 頻率驅動)
+- D7 (GPIO13) : 蜂鳴器負極 (軟體虛擬接地 0V LOW，靜音時轉 INPUT 高阻抗)
+
+請產出完整的 Stage3B_Master.ino 與配套的電競級大看板 webpage.h。</code></pre>
+        </div>
+
+        <!-- 提示詞卡片二：Slave 邊緣子機 -->
+        <div class="code-card">
+          <div class="code-header">
+            <span class="code-title">📄 prompt_stage3b_slave.md (貼給 Gemini 網頁版 · 極簡邊緣敏捷子機)</span>
+            <button class="copy-btn" onclick="copyCode(this)">複製提示詞</button>
+          </div>
+          <pre><code>你是一位精通嵌入式感測、低功耗無線通訊與 ESP-NOW 協定的資深工程師。我想在 Arduino IDE 中為國中科技研習設計一個「ArenaPod 極簡邊緣敏捷子機 (Stage 3B Slave Node · 高響應版)」專案。
+
+### 1. 系統定位與極簡職責
+- 本機專任【極簡邊緣感測節點 (Dumb Node / Pod #1~#3)】，不負責複雜遊戲規則與計時，專職：
+  1. 接收 Master 指令呈現聲光 (待命心跳快閃 / 當前目標 80ms 爆亮快閃 / 熄滅)。
+  2. 微秒級捕獲按鈕拍擊，0ms 本地熄滅並向 Master 發報 MSG_HIT。
+  3. 收到拍錯指令發出 250Hz 錯誤警告音。
+
+### 2. 狀態與燈號狀態機 (SlaveLedMode)
+- SLAVE_LED_UNPAIRED (未配對)：800ms 慢閃待命，不發送任何廣播，靜候收編。
+- SLAVE_LED_STANDBY (等待起跑)：心跳快閃 (1000ms 雙拍脈衝 咚-噠)，宣告在線。
+- SLAVE_LED_STROBE (當前目標)：80ms 爆亮快閃，強力引導選手奔跑衝刺！
+- SLAVE_LED_OFF (非目標)：熄滅待命。
+
+### 3. 通訊與防混淆機制
+- 接收 Master 的廣播封包，核對 groupId (未配對時接收收編 ACK 並儲存 groupId 與 podId 至 EEPROM)。
+- 收到 MSG_START_RACE 或 MSG_LAP_UPDATE 時：若 targetPod == myPodId 轉為 80ms 爆閃；否則立即熄滅。
+- 按鈕拍擊 (Falling Edge 下降緣觸發)：
+  - 若在未配對狀態：送出 MSG_PAIR_REQ 請求收編。
+  - 若在比賽狀態：本地 0ms 立即熄滅 LED ＋ 2200Hz 50ms 清脆短音，送出 MSG_HIT 給 Master 裁決！
+- 收到 MSG_ERROR_BUZZ：若目標是自己，發出 250Hz 低頻警告音 120ms。
+- 收到 MSG_TEST_BLINK：蜂鳴快閃 2 秒供老師實體點名辨識。
+
+### 4. 硬體腳位規範 (分側集中安全版)
+- D3 (GPIO0)  : 按鈕微動 (INPUT_PULLUP)
+- D4 (GPIO2)  : 按鈕/LED 共用負極 (軟體虛擬接地 0V LOW)
+- D5 (GPIO14) : 按鈕 LED 正極 (HIGH 點亮)
+- D6 (GPIO12) : 蜂鳴器正極 (tone 頻率驅動)
+- D7 (GPIO13) : 蜂鳴器負極 (軟體虛擬接地 0V LOW，靜音時轉 INPUT 高阻抗)
+
+請產出架構極簡、零中斷阻塞且具備完整繁體中文註解的單一檔案 Stage3B_Slave.ino。</code></pre>
+        </div>
+
+        <div class="grid-2">
+          <div class="figure-card">
+            <img src="images/slide_ai_sports_analytics.jpg" alt="體育數據分析概念">
+            <div class="figure-caption">
+              <strong>跨領域真實應用：</strong>科技課親手製作的機電按鈕盒，走進體育課體適能測驗、折返跑競賽與智慧校園活動！
+            </div>
+          </div>
+          <div class="figure-card">
+            <img src="images/cover_arenapod_action.jpg" alt="ArenaPod 競技現場">
+            <div class="figure-caption">
+              <strong>科技教育巔峰：</strong>從單板微動防抖、雙板 ESP-NOW 隔空互控，一路進化到消費級多節點體能競技物聯網系統！
+            </div>
+          </div>
+        </div>
+
+        <p><strong>Master 主控台韌體目錄：</strong> <a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage3B_Master/"
+            target="_blank"
+            style="color: var(--primary); font-weight: 700;"><code>Aiot/Stage3B_Master/</code></a> ｜ <strong>二進位檔：</strong> <code>firmware_Stage3B_Master.bin</code><br>
+          <strong>Slave 敏捷子機韌體目錄：</strong> <a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage3B_Slave/"
+            target="_blank"
+            style="color: var(--primary); font-weight: 700;"><code>Aiot/Stage3B_Slave/</code></a> ｜ <strong>二進位檔：</strong> <code>firmware_Stage3B_Slave.bin</code>
+        </p>
+      </section>
+
+      <!-- 單元 6：研習實戰排錯指南與戰備檢核 (Module 06) -->
+      <section id="module-troubleshooting" class="content-module">
+        <div class="module-header">
+          <span class="module-tag">Module 06 · 實戰錦囊</span>
+          <h2 class="module-title">研習現場實戰排錯與戰備檢核指南</h2>
+          <p class="module-subtitle">面對課堂各類突發狀況的 SOP 應變錦囊與 7 大階段韌體快速速查</p>
+        </div>
+
+        <p>
+          研習現場數十位老師同時操作硬體、周遭 2.4GHz Wi-Fi 訊號混雜、電腦連接埠偶有鎖死，是實體科技研習最常見的挑戰。以下整理了講師上陣必備的<strong>六大突發狀況急救 SOP</strong>與<strong>全階段韌體燒錄對照表</strong>，確保課程流暢推進。
+        </p>
+
+        <h3>1. 課堂現場六大疑難急救 SOP (Emergency Troubleshooting)</h3>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">🚨 急救 1：Windows 序列埠佔用錯誤 (PermissionError / Access is denied)</div>
+          <p><strong>【現象】</strong>：點擊燒錄或執行 esptool 時，提示 <code>COMx 拒絕存取</code> 或一直卡在 <code>Connecting........_____.....</code> 無法同步。</p>
+          <p><strong>【成因】</strong>：CH340 晶片在 ESP8266 自動重啟 (RTS/DTR) 時，若被 Windows 其他背景行程、前次未完全關閉的 Serial Monitor 鎖定，會發生控制代碼 latch。</p>
+          <p><strong>【秒解 SOP】</strong>：
+            <br>1. <strong>最快且 100% 有效動作：直接拔除該板子的 USB 傳輸線，等 2 秒再重新插上！</strong> Windows 會強制釋放 handle 並重新辨識埠號。
+            <br>2. 若使用 Arduino IDE，確認 Serial Monitor (序列埠監控視窗) 已先關閉。
+          </p>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-title">📱 急救 2：手機連上 SoftAP 卻沒有跳出 Captive Portal 認證彈窗</div>
+          <p><strong>【現象】</strong>：手機 Wi-Fi 已連上 <code>Shuttle_MASTER</code> 或 <code>ArenaPod_Master_XXXX</code>，但畫面沒有自動彈出計時儀表板。</p>
+          <p><strong>【秒解 SOP】</strong>：
+            <br>1. <strong>手動開啟瀏覽器</strong>：直接在手機 Chrome / Safari 網址列輸入 <code>http://192.168.4.1</code> 即可秒開。
+            <br>2. <strong>暫時關閉手機行動數據 (4G/5G)</strong>：部分 iOS / Android 手機偵測到此熱點無對外網際網路，會自動在背景切換成行動數據，導致本地請求被轉向外網。
+          </p>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-title">🤝 急救 3：ESP-NOW 隔空傳送無反應或被隔壁組串台</div>
+          <p><strong>【現象】</strong>：A 老師拍按鈕，自己的板子沒反應，隔壁組卻嗶嗶叫；或是兩顆板子怎麼拍都不理對方。</p>
+          <p><strong>【秒解 SOP】</strong>：
+            <br>1. <strong>Stage 2A 廣播版</strong>：請確認程式碼頂部的 <code>const uint16_t GROUP_ID = 0x1234;</code> 是否跟隔壁桌設成相同數值。每組老師必須使用專屬組號（例如 0x0101, 0x0202...）。
+            <br>2. <strong>Stage 2B WPS 自動配對</strong>：兩位老師在 3.5 秒內各自「快按兩下」按鈕，LED 爆閃完成點對點 MAC 互鎖，永久免疫串台。
+            <br>3. <strong>Stage 3B 拍擊收編 (Tap-to-Enroll)</strong>：Master 網頁點擊「➕ 拍擊收編新盒子」，在 15 秒綠燈期間拍擊欲收編的子機，即可納入 Pod 1~3，其餘未拍盒子絕不干擾！
+          </p>
+        </div>
+
+        <div class="callout callout-info">
+          <div class="callout-title">🔇 急救 4：蜂鳴器持續有輕微嘶嘶聲或高頻電流雜訊</div>
+          <p><strong>【現象】</strong>：沒按按鈕時，蜂鳴器有微小高頻干擾聲。</p>
+          <p><strong>【成因與解法】</strong>：ESP8266 在 Wi-Fi 射頻發射瞬間會有約 170mA 的瞬間突波。本教案已在軟體層導入<strong>「高阻抗消噪技術」</strong>：在不發聲時呼叫 <code>pinMode(D6, INPUT); pinMode(D7, INPUT);</code>，讓腳位完全進入高阻抗浮接狀態，徹底杜絕虛擬接地與射頻串擾。</p>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-title">💡 急救 5：外接大型按鈕 LED 恆亮不熄滅或按鈕觸發失靈</div>
+          <p><strong>【現象】</strong>：板載藍燈正常，但街機大按鈕的 LED 一直亮著無法控制，或者拍擊沒訊號。</p>
+          <p><strong>【秒解 SOP】</strong>：微動開關底座為 4 Pin 配置（2 Pin 微動開關觸點，2 Pin LED 電源）。請務必檢查杜邦線接腳：
+            <br>• <strong>微動開關訊號</strong>：一端接 <strong>D3 (GPIO0)</strong>，另一端接 <strong>D4 (虛擬接地 0V)</strong>。
+            <br>• <strong>按鈕 LED 燈</strong>：正極（標示 ＋）接 <strong>D5 (GPIO14)</strong>，負極（標示 －）接 <strong>D4 (與微動共用虛擬接地)</strong>。
+            <br>• <strong>蜂鳴器</strong>：正極接 <strong>D6 (GPIO12)</strong>，負極接 <strong>D7 (GPIO13 虛擬接地)</strong>。
+          </p>
+        </div>
+
+        <div class="callout callout-success">
+          <div class="callout-title">📶 急救 6：研習現場學校 Wi-Fi 癱瘓或連線限制</div>
+          <p><strong>【終極防禦】</strong>：本教案從 Stage 1A 到 Stage 3B 均支援<strong>「純單機獨立運作（100% Offline 零外網依賴）」</strong>！
+            <br>• 節點間通訊完全走底層 <strong>ESP-NOW 協定</strong>，無需無線路由器 AP。
+            <br>• 網頁儀表板完全由 ESP8266 自身的 <strong>SoftAP (192.168.4.1)</strong> 獨立推播。現場就算完全沒有網路，研習進度依然 100% 絲滑推進！
+          </p>
+        </div>
+
+        <h3>2. 全課程 7 大階段韌體快速速查表 (Firmware Directory)</h3>
+        <p>研習現場可直接透過 USB 傳輸線燒錄，或透過各階段的 Web OTA 頁面進行空中上傳更新：</p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>階段代號</th>
+                <th>專案資料夾</th>
+                <th>原始碼 (.ino)</th>
+                <th>二進位檔 (.bin)</th>
+                <th>核心功能與特色</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Stage 1A</strong></td>
+                <td><a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage1A_SpeedTapper/" target="_blank"><code>Stage1A_SpeedTapper/</code></a></td>
+                <td><code>Stage1A_SpeedTapper.ino</code></td>
+                <td><code>firmware_Stage1A.bin</code></td>
+                <td>單板手速挑戰賽 (有線閉環標準版，350ms 彈跳濾波)</td>
+              </tr>
+              <tr>
+                <td><strong>Stage 1B</strong></td>
+                <td><a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage1B_SpeedTapper/" target="_blank"><code>Stage1B_SpeedTapper/</code></a></td>
+                <td><code>Stage1B_SpeedTapper.ino</code></td>
+                <td><code>firmware_Stage1B.bin</code></td>
+                <td>解鎖 Web OTA 空中無線更新 ＋ Do-Mi-Sol-Do 歡樂音樂</td>
+              </tr>
+              <tr>
+                <td><strong>Stage 2A</strong></td>
+                <td><a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage2A_EspNowGroupId/" target="_blank"><code>Stage2A_EspNowGroupId/</code></a></td>
+                <td><code>Stage2A_EspNowGroupId.ino</code></td>
+                <td><code>firmware_Stage2A.bin</code></td>
+                <td>雙板 ESP-NOW 隔空乒乓 (廣播組別 Group ID 隔離防護)</td>
+              </tr>
+              <tr>
+                <td><strong>Stage 2B</strong></td>
+                <td><a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage2B_EspNowAutoPair/" target="_blank"><code>Stage2B_EspNowAutoPair/</code></a></td>
+                <td><code>Stage2B_EspNowAutoPair.ino</code></td>
+                <td><code>firmware_Stage2B.bin</code></td>
+                <td>雙板 ESP-NOW WPS 自動配對 (3.5s 窗口雙向確認，免改組號)</td>
+              </tr>
+              <tr>
+                <td><strong>Stage 3A</strong></td>
+                <td><a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage3A_ShuttleRun/" target="_blank"><code>Stage3A_ShuttleRun/</code></a></td>
+                <td><code>Stage3A_ShuttleRun.ino</code></td>
+                <td><code>firmware_Stage3A.bin</code></td>
+                <td>雙板通用直線多趟折返跑 (誰先按誰是主控、0ms 下降緣觸發、Captive Portal)</td>
+              </tr>
+              <tr>
+                <td><strong>Stage 3B (主)</strong></td>
+                <td><a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage3B_Master/" target="_blank"><code>Stage3B_Master/</code></a></td>
+                <td><code>Stage3B_Master.ino</code></td>
+                <td><code>firmware_Stage3B_Master.bin</code></td>
+                <td>多節點星狀主控閘道器 (Pod 0 仲裁大腦、拍擊收編、雷達呼叫、1➔2➔3➔4 循序跑)</td>
+              </tr>
+              <tr>
+                <td><strong>Stage 3B (從)</strong></td>
+                <td><a href="file:///h:/我的雲端硬碟/01課程教案開發/00AI研習教案開發/Aiot/Stage3B_Slave/" target="_blank"><code>Stage3B_Slave/</code></a></td>
+                <td><code>Stage3B_Slave.ino</code></td>
+                <td><code>firmware_Stage3B_Slave.bin</code></td>
+                <td>多節點邊緣敏捷子機 (Pod 1~3 極簡啞巴節點、心跳快閃、80ms 爆亮快閃)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>3. 研習現場現役 4 顆硬體配置備忘錄 (Field Flashing Record)</h3>
+        <p>目前工作區已針對現場實體 4 盒完成 Stage 3B 完整燒錄與 MAC 鎖定，上課時一開機即可展示多節點跨桌循序闖關跑：</p>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>節點編號</th>
+                <th>角色 (Role)</th>
+                <th>實體板 MAC 位址</th>
+                <th>最近燒錄埠口</th>
+                <th>現場燈號狀態與職責</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Pod #0</strong></td>
+                <td><span style="color:#16a34a; font-weight:700;">👑 Master 閘道器</span></td>
+                <td><code>24:a1:60:2d:37:43</code></td>
+                <td>COM6</td>
+                <td>起跑點起步大按鈕；發射熱點 <code>ArenaPod_Master_3743</code>；網頁大看板推播</td>
+              </tr>
+              <tr>
+                <td><strong>Pod #1</strong></td>
+                <td><span style="color:#2563eb; font-weight:700;">🏃 Slave 子機 1</span></td>
+                <td><code>68:c6:3a:d3:4b:22</code></td>
+                <td>COM5</td>
+                <td>第 1 折返點；開機雙拍心跳脈衝；輪到時 80ms 爆亮快閃引導</td>
+              </tr>
+              <tr>
+                <td><strong>Pod #2</strong></td>
+                <td><span style="color:#d97706; font-weight:700;">🏃 Slave 子機 2</span></td>
+                <td><code>48:3f:da:8b:a1:f9</code></td>
+                <td>COM7</td>
+                <td>第 2 折返點；開機雙拍心跳脈衝；輪到時 80ms 爆亮快閃引導</td>
+              </tr>
+              <tr>
+                <td><strong>Pod #3</strong></td>
+                <td><span style="color:#7c3aed; font-weight:700;">🏃 Slave 子機 3</span></td>
+                <td><code>24:a1:60:2d:a0:c8</code></td>
+                <td>COM5</td>
+                <td>第 3 折返點；開機雙拍心跳脈衝；輪到時 80ms 爆亮快閃引導</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- 頁尾 -->
+  <footer>
+    <div style="font-weight: 700; color: #0f172a; margin-bottom: 0.35rem;">
+      打造互動教室：AIoT 機電整合與智慧裝置設計 · 科技領域教師研習實作講義
+    </div>
+    <div>
+      高雄市科技領域輔導團 · 高雄市立福山國中 王朝葦 老師（王董） 編撰
+    </div>
+  </footer>
+
+  <script>
+    // 側邊欄點選切換高亮
+    const navLinks = document.querySelectorAll('.nav-item a');
+    navLinks.forEach(link => {
+      link.addEventListener('click', function (e) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+
+    // 複製程式碼提示詞函式
+    function copyCode(btn) {
+      const pre = btn.closest('.code-card').querySelector('pre code');
+      navigator.clipboard.writeText(pre.innerText).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = '✅ 已複製！';
+        btn.style.background = '#059669';
+        btn.style.borderColor = '#059669';
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.style.background = '';
+          btn.style.borderColor = '';
+        }, 2000);
+      });
+    }
+
+    // ScrollSpy 監聽捲動更新左側狀態
+    window.addEventListener('scroll', () => {
+      const sections = document.querySelectorAll('section.content-module');
+      let currentSection = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 100;
+        if (window.scrollY >= sectionTop) {
+          currentSection = section.getAttribute('id');
+        }
+      });
+      if (currentSection) {
+        navLinks.forEach(link => {
+          link.classList.remove('active');
+          if (link.getAttribute('href') === `#${currentSection}`) {
+            link.classList.add('active');
+          }
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>

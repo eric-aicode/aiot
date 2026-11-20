@@ -1,0 +1,16 @@
+# Ignore large files exceeding GitHub's 100MB limit
+*.zip
+Arduino-1.8.19-Portable-ESP8266.zip
+
+# Ignore Arduino CLI build artifacts and intermediate object files
+build/
+*.elf
+*.map
+*.o
+*.d
+*.tmp
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini

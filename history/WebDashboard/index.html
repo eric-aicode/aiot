@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="電子折返跑無線計時與體能競技大看板 - 支援 ESP-NOW 極速廣播與 Web Serial 即時投影">
+  <title>電子折返跑無線競技計時大看板</title>
+  <!-- Google Fonts: Orbitron for digital timer, Outfit & Inter for UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Inter:wght@400;600;800&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- 頂部資訊列 (Header & Controls) -->
+    <header class="top-bar">
+      <div class="brand" style="display:flex; align-items:center; gap:12px;">
+        <img src="../author_logo.png" alt="Author Logo" style="height:44px; width:44px; object-fit:contain; border-radius:9px; border:1px solid rgba(0,242,254,0.3); background:rgba(255,255,255,0.05); padding:2px;">
+        <div>
+          <div class="brand-badge">ESP-NOW AIoT</div>
+          <h1 class="brand-title">電子折返跑 <span>競技計時大看板</span></h1>
+        </div>
+      </div>
+
+      <div class="top-controls">
+        <div class="status-pill status-idle" id="systemStatusPill">
+          <span class="status-dot"></span>
+          <span id="statusText">待機就緒 (READY)</span>
+        </div>
+
+        <button id="btnConnectSerial" class="btn btn-primary" title="連接插在筆電上的 D1 mini 序列埠">
+          <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v6m0 4v10M9 5h6M9 19h6M5 12h14"/>
+          </svg>
+          <span id="serialBtnText">連線 D1 mini (USB)</span>
+        </button>
+
+        <button id="btnAudioToggle" class="btn btn-ghost" title="切換現場音效">
+          <svg id="iconAudioOn" class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          </svg>
+          <svg id="iconAudioOff" class="icon hidden" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 5L6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6"/>
+          </svg>
+        </button>
+
+        <button id="btnFullscreen" class="btn btn-ghost" title="全螢幕投影">
+          <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主體內容區塊 (Grid Layout) -->
+    <main class="main-grid">
+      <!-- 左側：計時巨幕與跑道即時動畫 -->
+      <section class="timer-stage card-glass">
+        <!-- 跑道視覺化進度條 -->
+        <div class="track-container">
+          <div class="track-node node-start active" id="nodeStart">
+            <div class="node-icon">🏁</div>
+            <div class="node-label">起點</div>
+          </div>
+          <div class="track-line">
+            <div class="runner-avatar" id="runnerAvatar">🏃</div>
+            <div class="track-progress" id="trackProgress"></div>
+          </div>
+          <div class="track-node node-turn" id="nodeTurn">
+            <div class="node-icon">🚩</div>
+            <div class="node-label">折返點</div>
+          </div>
+        </div>
+
+        <!-- 巨型電子計時器 -->
+        <div class="display-container">
+          <div class="stage-tag" id="stageTag">READY</div>
+          <div class="digital-timer" id="digitalTimer">
+            <span class="part-min" id="timerMins">00</span><span class="colon">:</span><span class="part-sec" id="timerSecs">00</span><span class="dot">.</span><span class="part-ms" id="timerMs">000</span>
+          </div>
+          <div class="countdown-overlay hidden" id="countdownOverlay">
+            <span class="countdown-number" id="countdownText">3</span>
+          </div>
+        </div>
+
+        <!-- 分段成績卡 (Split Times) -->
+        <div class="splits-row">
+          <div class="split-card" id="cardLeg1">
+            <div class="split-header">
+              <span class="split-badge">第 1 趟</span>
+              <span class="split-title">去程衝刺</span>
+            </div>
+            <div class="split-time" id="timeLeg1">--:--.---</div>
+            <div class="split-sub" id="subLeg1">等待折返拍擊</div>
+          </div>
+
+          <div class="split-card" id="cardLeg2">
+            <div class="split-header">
+              <span class="split-badge">第 2 趟</span>
+              <span class="split-title">回程衝刺</span>
+            </div>
+            <div class="split-time" id="timeLeg2">--:--.---</div>
+            <div class="split-sub" id="subLeg2">等待衝線拍擊</div>
+          </div>
+
+          <div class="split-card total-card" id="cardTotal">
+            <div class="split-header">
+              <span class="split-badge badge-gold">總成績</span>
+              <span class="split-title">完賽總時間</span>
+            </div>
+            <div class="split-time total-time" id="timeTotal">--:--.---</div>
+            <div class="split-sub" id="subTotal">等待賽事結算</div>
+          </div>
+        </div>
+
+        <!-- 現場操作快捷控制台 -->
+        <div class="control-panel">
+          <button id="btnStartCountdown" class="btn btn-action btn-start">
+            <span class="btn-icon">⚡</span>
+            <span>倒數發令起跑 (空白鍵)</span>
+          </button>
+          <button id="btnInstantStart" class="btn btn-action btn-sub">
+            <span class="btn-icon">🚀</span>
+            <span>直接起跑 [G]</span>
+          </button>
+          <button id="btnSimulateHit" class="btn btn-action btn-hit">
+            <span class="btn-icon">🥊</span>
+            <span id="hitBtnText">拍擊折返點 [H]</span>
+          </button>
+          <button id="btnReset" class="btn btn-action btn-reset">
+            <span class="btn-icon">🔄</span>
+            <span>歸零重置 [R]</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 右側：歷史成績排行榜與節點通訊遙測 -->
+      <aside class="sidebar-stage">
+        <!-- 歷史成績排行榜卡片 -->
+        <div class="card-glass leaderboard-card">
+          <div class="sidebar-header">
+            <div class="header-title">
+              <span class="title-icon">🏆</span>
+              <h2>本場測驗排行榜</h2>
+            </div>
+            <div class="header-actions">
+              <button id="btnExportCsv" class="btn btn-small" title="匯出 CSV 成績單">匯出 CSV</button>
+              <button id="btnClearHistory" class="btn btn-small btn-danger" title="清空紀錄">清空</button>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table class="leaderboard-table" id="leaderboardTable">
+              <thead>
+                <tr>
+                  <th>名次</th>
+                  <th>選手編號</th>
+                  <th>去程</th>
+                  <th>回程</th>
+                  <th>總成績</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboardBody">
+                <tr class="empty-row">
+                  <td colspan="5">尚無完賽紀錄，點擊「發令起跑」開始測驗</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 節點即時遙測與事件日誌 -->
+        <div class="card-glass telemetry-card">
+          <div class="sidebar-header">
+            <div class="header-title">
+              <span class="title-icon">📡</span>
+              <h2>無線節點遙測與日誌</h2>
+            </div>
+            <span class="node-badge" id="telemetryNodeBadge">廣播監聽中</span>
+          </div>
+          <div class="terminal-log" id="terminalLog">
+            <div class="log-line text-muted">[系統] 電子折返跑競技計時大看板就緒。</div>
+            <div class="log-line text-muted">[提示] 插上 D1 mini 後點擊「連線 D1 mini (USB)」即時接收硬體拍擊！</div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
