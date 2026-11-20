@@ -47,6 +47,7 @@
 ## 🌐 核心研習文件快速連結
 
 - 🎨 **[精簡教學簡報 (Canva)](https://canva.link/6io5jtndaheli7z)**：王董精心製作的 Canva 精簡教學投影片，視覺化破冰與核心觀念速覽。
+- 📦 **[免安裝 Arduino 綠色隨身包 (Google Drive)](https://drive.google.com/open?id=1WvaOGtPN6lqbmegGWYMPW0Fgm3zdMmAK&usp=drive_fs)**：預載好 ESP8266 核心與完整函式庫，解壓縮即用，免除教室網管限制。
 - 📄 **[線上課程講義 (curriculum_guide.html)](./curriculum_guide.html)**：包含完整的研習教案背景、AI 提示詞詠唱公式、實作 SOP 與排錯指南。
 - 📺 **[現場投影大簡報 (workshop_presentation.html)](./workshop_presentation.html)**：講師現場授課簡報，內建 A/B 板邏輯互動模擬器與全螢幕投影視圖。
 - 📜 **[折返跑深度技術手冊 (折返跑.md)](./折返跑.md)**：包含 ArenaPod 狀態機時序圖、通訊協定封包格式與運動科學裁決邏輯。
