@@ -526,25 +526,50 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       </button>
 
       <div style="font-weight:800; font-size:0.95rem; color:var(--gold); margin-top:16px;">
-        ☁️ 雲端線上下載韌體更新 (OTA)
+        🚀 韌體無線升級中心 (OTA)
       </div>
-      <div class="box-info" style="border-color:rgba(255,183,3,0.3); background:rgba(255,183,3,0.06);">
-        連上外部網路後，板子可直接從遠端載點下載最新韌體自動刷新：
-      </div>
-      <div class="form-group">
-        <span class="form-label">韌體下載網址 (.bin URL)</span>
-        <div style="display:flex; gap:6px; margin-bottom:4px;">
-          <button class="pill-btn" style="padding:3px 8px; font-size:0.75rem;" onclick="setCloudUrl('drive')">📁 Google Drive 載點</button>
-          <button class="pill-btn" style="padding:3px 8px; font-size:0.75rem;" onclick="setCloudUrl('github')">🐙 GitHub 載點</button>
-        </div>
-        <input type="text" class="form-input" id="cloudOtaUrl" value="https://drive.google.com/uc?export=download&id=1QwJxZ1gZpncdnnJL5c4IYgl0H-iliAxm">
-      </div>
-      <button class="pill-btn" style="justify-content:center; background:linear-gradient(135deg,#ffb703,#fb8500); color:#000;" onclick="startCloudOTA()">
-        ☁️ 從雲端一鍵下載升級
-      </button>
 
-      <a href="/update" class="pill-btn" style="margin-top:auto; justify-content:center;">
-        🚀 本地手動上傳韌體 (/update)
+      <!-- 即時雙向進度條容器 -->
+      <div id="otaProgressContainer" style="display:none; flex-direction:column; gap:6px; background:rgba(0,0,0,0.6); border:1px solid var(--cyan); border-radius:10px; padding:12px; margin-top:4px;">
+        <div style="display:flex; justify-content:space-between; font-size:0.82rem; font-weight:700;">
+          <span id="otaStageText" style="color:var(--cyan);">正在下載韌體...</span>
+          <span id="otaPercentText" style="color:var(--gold);">0%</span>
+        </div>
+        <div style="width:100%; height:12px; background:rgba(255,255,255,0.1); border-radius:6px; overflow:hidden;">
+          <div id="otaProgressBar" style="width:0%; height:100%; background:linear-gradient(90deg, #00f2fe, #00ff87); transition:width 0.15s ease;"></div>
+        </div>
+        <div id="otaDetailText" style="font-size:0.75rem; color:var(--muted); text-align:center;">準備中...</div>
+      </div>
+
+      <!-- 方式一：雲端直連一鍵升級 -->
+      <div class="form-group" id="otaCloudSection" style="margin-top:6px;">
+        <span class="form-label">方式 ①：GitHub 雲端一鍵下載寫入</span>
+        <div style="display:flex; gap:6px; margin-bottom:4px;">
+          <button class="pill-btn" style="padding:3px 8px; font-size:0.75rem;" onclick="setCloudUrl('github')">🐙 GitHub 載點 (推薦)</button>
+          <button class="pill-btn" style="padding:3px 8px; font-size:0.75rem;" onclick="setCloudUrl('drive')">📁 Google Drive 載點</button>
+        </div>
+        <input type="text" class="form-input" id="cloudOtaUrl" value="https://raw.githubusercontent.com/eric-aicode/aiot/main/Project_10SecChallenge/firmware_10SecChallenge.bin">
+        <button class="pill-btn" id="btnStartCloudOTA" style="justify-content:center; background:linear-gradient(135deg,#ffb703,#fb8500); color:#000; font-weight:900; margin-top:4px;" onclick="startSmartCloudOTA()">
+          ☁️ 從雲端一鍵升級 (即時進度條)
+        </button>
+      </div>
+
+      <!-- 方式二：手動本機檔案上傳 -->
+      <div class="form-group" id="otaLocalSection" style="margin-top:10px;">
+        <span class="form-label">方式 ②：直接選取本機 .bin 檔案寫入</span>
+        <div style="display:flex; gap:6px;">
+          <input type="file" id="localBinFile" accept=".bin" style="display:none;" onchange="handleFileChosen(this)">
+          <button class="pill-btn" style="flex:1; justify-content:center;" onclick="document.getElementById('localBinFile').click()">
+            📁 <span id="localFileName">選擇電腦上的 .bin 檔案...</span>
+          </button>
+          <button class="pill-btn" id="btnUploadLocal" style="background:var(--green); color:#000; font-weight:900; display:none;" onclick="uploadLocalFile()">
+            🚀 寫入
+          </button>
+        </div>
+      </div>
+
+      <a href="/update" class="pill-btn" style="margin-top:auto; justify-content:center; font-size:0.75rem; color:var(--muted);">
+        ⚙️ 原生備用升級後台 (/update)
       </a>
     </div>
   </div>
@@ -1150,16 +1175,134 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       }
     }
 
-    function startCloudOTA() {
+    function handleFileChosen(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        document.getElementById('localFileName').innerText = file.name + ` (${(file.size/1024).toFixed(0)} KB)`;
+        document.getElementById('btnUploadLocal').style.display = 'inline-flex';
+      }
+    }
+
+    function uploadBinaryToESP(blob, filename = 'firmware.bin') {
+      const pContainer = document.getElementById('otaProgressContainer');
+      const stageText = document.getElementById('otaStageText');
+      const percentText = document.getElementById('otaPercentText');
+      const pBar = document.getElementById('otaProgressBar');
+      const detailText = document.getElementById('otaDetailText');
+
+      pContainer.style.display = 'flex';
+      stageText.innerText = '🚀 正在寫入 ESP8266 Flash...';
+      stageText.style.color = 'var(--cyan)';
+      percentText.innerText = '0%';
+      pBar.style.width = '0%';
+      detailText.innerText = `準備傳輸 ${(blob.size / 1024).toFixed(1)} KB...`;
+
+      const formData = new FormData();
+      formData.append('firmware', blob, filename);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/update');
+
+      xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          pBar.style.width = pct + '%';
+          percentText.innerText = pct + '%';
+          detailText.innerText = `已寫入 ${(e.loaded / 1024).toFixed(1)} / ${(e.total / 1024).toFixed(1)} KB`;
+        }
+      };
+
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          pBar.style.width = '100%';
+          percentText.innerText = '100%';
+          stageText.innerText = '✅ 韌體升級完成！';
+          stageText.style.color = 'var(--green)';
+
+          let count = 5;
+          detailText.innerHTML = `<strong style="color:var(--gold);">板子正在重開機！${count} 秒後自動重新整理網頁...</strong>`;
+          const timer = setInterval(() => {
+            count--;
+            if (count <= 0) {
+              clearInterval(timer);
+              window.location.reload();
+            } else {
+              detailText.innerHTML = `<strong style="color:var(--gold);">板子正在重開機！${count} 秒後自動重新整理網頁...</strong>`;
+            }
+          }, 1000);
+        } else {
+          stageText.innerText = '❌ 寫入失敗: HTTP ' + xhr.status;
+          stageText.style.color = 'var(--red)';
+          detailText.innerText = xhr.responseText || '傳輸被中斷或板子拒絕寫入';
+        }
+      };
+
+      xhr.onerror = function() {
+        stageText.innerText = '❌ 寫入連線失敗！';
+        stageText.style.color = 'var(--red)';
+        detailText.innerText = '請確認板子未斷電且 Wi-Fi 連線正常';
+      };
+
+      xhr.send(formData);
+    }
+
+    function uploadLocalFile() {
+      const fileInput = document.getElementById('localBinFile');
+      if (!fileInput.files || !fileInput.files[0]) return alert('請先選擇 .bin 檔案！');
+      if (!confirm(`即將將「${fileInput.files[0].name}」寫入板子，過程中請勿拔除電源。確定繼續？`)) return;
+      uploadBinaryToESP(fileInput.files[0], fileInput.files[0].name);
+    }
+
+    function startSmartCloudOTA() {
       const url = document.getElementById('cloudOtaUrl').value.trim();
       if (!url) return alert('請輸入韌體下載網址！');
-      if (!confirm('即將從雲端下載並更新韌體，更新期間請勿拔除電源。確定繼續？')) return;
-      const body = new URLSearchParams();
-      body.append('url', url);
-      fetch('/api/ota/cloud', { method: 'POST', body: body })
-        .then(r => r.text())
-        .then(msg => alert(msg))
-        .catch(err => alert('啟動失敗: ' + err));
+      if (!confirm('即將從雲端下載最新韌體並即時寫入板子，過程中請勿關閉網頁或拔除電源。確定繼續？')) return;
+
+      const pContainer = document.getElementById('otaProgressContainer');
+      const stageText = document.getElementById('otaStageText');
+      const percentText = document.getElementById('otaPercentText');
+      const pBar = document.getElementById('otaProgressBar');
+      const detailText = document.getElementById('otaDetailText');
+
+      pContainer.style.display = 'flex';
+      stageText.innerText = '📥 正在從雲端載入韌體檔案...';
+      stageText.style.color = 'var(--cyan)';
+      percentText.innerText = '連線中...';
+      pBar.style.width = '20%';
+      detailText.innerText = '正在連線遠端伺服器 (GitHub)...';
+
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error('雲端載點回應 HTTP ' + res.status);
+          pBar.style.width = '60%';
+          detailText.innerText = '下載成功，正在解碼二進制檔案...';
+          return res.blob();
+        })
+        .then(blob => {
+          pBar.style.width = '100%';
+          detailText.innerText = `檔案取得成功 (${(blob.size / 1024).toFixed(1)} KB)！即刻啟動 Flash 寫入...`;
+          setTimeout(() => {
+            uploadBinaryToESP(blob, 'firmware_10SecChallenge.bin');
+          }, 300);
+        })
+        .catch(err => {
+          stageText.innerText = '⚠️ 瀏覽器直連受限，切換由板子端下載...';
+          stageText.style.color = 'var(--gold)';
+          detailText.innerText = '正在請板子後端直接下載: ' + err.message;
+
+          const body = new URLSearchParams();
+          body.append('url', url);
+          fetch('/api/ota/cloud', { method: 'POST', body: body })
+            .then(r => r.text())
+            .then(msg => {
+              detailText.innerText = msg;
+            })
+            .catch(e => {
+              stageText.innerText = '❌ 雲端更新失敗';
+              stageText.style.color = 'var(--red)';
+              detailText.innerText = e.message;
+            });
+        });
     }
 
     // 4 個模式獨立排行榜
