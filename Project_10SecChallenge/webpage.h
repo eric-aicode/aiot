@@ -461,9 +461,18 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       <span class="d-slot" id="d0">0</span><span class="d-slot" id="d1">0</span><span class="d-dot">.</span><span class="d-slot" id="d2">0</span><span class="d-slot" id="d3">0</span><span class="d-slot" id="d4">0</span>
     </div>
 
-    <!-- 視圖 1 / 2 / 3：單一超巨大數字 (手速 / 閃電 / 炸彈) -->
+    <!-- 視圖 1 / 2：單一超巨大數字 (手速 / 閃電) -->
     <div class="single-huge-digits font-sci-fi idle" id="boxSingleDigits" style="display:none;">
       0
+    </div>
+
+    <!-- 視圖 3：🦖 經典單鍵離線小恐龍 (Chrome Dino Runner) -->
+    <div id="boxDino" style="display:none; width:100%; max-width:820px; flex-direction:column; align-items:center; gap:8px;">
+      <div style="width:100%; display:flex; justify-content:space-between; align-items:center; font-family:'Share Tech Mono', monospace; font-size:clamp(1.1rem, 2.5vw, 1.8rem); font-weight:700; color:var(--text); padding:0 8px;">
+        <span style="color:var(--muted);">HI <strong id="dinoHighScore" style="color:var(--gold);">00000</strong></span>
+        <span id="dinoCurrentScore" style="color:var(--cyan); font-weight:900;">00000</span>
+      </div>
+      <canvas id="dinoCanvas" width="800" height="240" style="width:100%; height:auto; background:rgba(8, 14, 28, 0.85); border:1px solid rgba(0,242,254,0.3); border-radius:12px; box-shadow:0 0 35px rgba(0,242,254,0.18);"></canvas>
     </div>
 
     <!-- 定格結算資訊 -->
@@ -583,7 +592,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       { id: 0, name: '⏱️ 十秒節拍停秒', hint: '🎯 目標時間 <strong>10.000 秒</strong>', lbKey: 'timer10s_lb', lbTitle: '🏆 今日停秒榜 (Top 5)' },
       { id: 1, name: '⚡ 十秒手速狂拍', hint: '⚡ 倒數 <strong>10.0 秒</strong> 瘋狂狂拍！', lbKey: 'tapper10s_lb', lbTitle: '⚡ 今日手速榜 (Top 5)' },
       { id: 2, name: '🤠 閃電神經對決', hint: '⚠️ 屏息等待信號... <strong>見綠光暴閃瞬間拔槍！</strong>', lbKey: 'lightning10s_lb', lbTitle: '🤠 閃電牛仔榜 (Top 5)' },
-      { id: 3, name: '💣 心跳炸彈博弈', hint: '💣 炸彈已啟動！<strong>在引爆前及時拆彈！</strong>', lbKey: 'bomb10s_lb', lbTitle: '💣 拆彈勇者榜 (Top 5)' }
+      { id: 3, name: '🦖 經典單鍵小恐龍', hint: '🦖 拍擊實體按鈕 <strong>跳躍閃避障礙物！</strong>', lbKey: 'dino10s_lb', lbTitle: '🦖 恐龍跑酷榜 (Top 5)' }
     ];
     let currentGameMode = 0;
 
@@ -661,27 +670,40 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       currentGameMode = mode;
       currentState = STATE_READY;
       if (animFrameId) cancelAnimationFrame(animFrameId);
+      if (dinoLoopId) cancelAnimationFrame(dinoLoopId);
 
       const m = MODES[mode];
       btnMode.innerHTML = '🎮 模式: ' + m.name;
       targetBanner.innerHTML = m.hint;
       drawerTitle.innerText = m.lbTitle;
 
+      const resultOverlay = document.querySelector('.result-overlay');
+
       if (mode === 0) {
         // 模式 0：十秒停秒 (Time Lord)
         boxTimeLord.style.display = 'inline-flex';
         boxSingleDigits.style.display = 'none';
+        boxDino.style.display = 'none';
+        resultOverlay.style.display = 'flex';
         updateDigitSlots(0);
         boxTimeLord.className = 'giant-digits ' + FONTS[fontIndex].id + ' idle';
-      } else {
-        // 模式 1 / 2 / 3：單一超巨大字體
+      } else if (mode === 1 || mode === 2) {
+        // 模式 1 / 2：單一超巨大字體
         boxTimeLord.style.display = 'none';
         boxSingleDigits.style.display = 'block';
+        boxDino.style.display = 'none';
+        resultOverlay.style.display = 'flex';
         boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' idle';
 
         if (mode === 1) boxSingleDigits.innerText = '0';
         else if (mode === 2) boxSingleDigits.innerText = '--.---';
-        else if (mode === 3) boxSingleDigits.innerText = '0 分';
+      } else if (mode === 3) {
+        // 模式 3：🦖 經典單鍵離線小恐龍
+        boxTimeLord.style.display = 'none';
+        boxSingleDigits.style.display = 'none';
+        boxDino.style.display = 'flex';
+        resultOverlay.style.display = 'none';
+        initDinoGame();
       }
 
       deltaDisplay.innerText = '--';
@@ -689,7 +711,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       rankTag.innerText = '準備就緒';
       rankTag.className = 'rank-tag';
       bottomHint.className = 'bottom-hint';
-      bottomHint.innerHTML = '<span>🔘 拍擊實體大按鈕開始！</span>';
+      bottomHint.innerHTML = (mode === 3) ? '<span>🦖 拍擊實體大按鈕起跑跳躍！</span>' : '<span>🔘 拍擊實體大按鈕開始！</span>';
       playTone(700, 'sine', 0.08, 0.25);
     }
 
@@ -836,6 +858,9 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
     function handleTapScreen() {
       if (audioCtx.state === 'suspended') audioCtx.resume();
+      if (currentGameMode === 3) {
+        dinoJump();
+      }
       fetch('/api/button', { method: 'POST' }).catch(()=>{});
     }
 
@@ -859,12 +884,6 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
               const reactTime = (performance.now() - signalStartTime) / 1000;
               boxSingleDigits.innerText = reactTime.toFixed(3) + 's';
             }
-          } else if (currentGameMode === 3) {
-            // 模式 3：炸彈博弈 (分數隨時間指數級暴漲)
-            const sec = elapsed / 1000;
-            const currentScore = Math.floor(sec * sec * 100);
-            boxSingleDigits.innerText = currentScore.toLocaleString() + ' 分';
-            targetBanner.innerHTML = `💣 炸彈已運轉 <strong>${sec.toFixed(2)}s</strong>！及時拍擊落袋！`;
           }
           animFrameId = requestAnimationFrame(frame);
         }
@@ -904,12 +923,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
           bottomHint.className = 'bottom-hint locked';
           bottomHint.innerHTML = '<span>⚠️ 等待綠光信號，千萬別搶拍！</span>';
         } else if (currentGameMode === 3) {
-          // 炸彈啟動
-          boxSingleDigits.innerText = '0 分';
-          boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' running';
-          targetBanner.innerHTML = '💣 炸彈啟動！<strong>在引爆前及時拆彈！</strong>';
-          bottomHint.className = 'bottom-hint';
-          bottomHint.innerHTML = '<span>💣 再次拍擊按鈕立即拆彈落袋！</span>';
+          // 小恐龍起跑
+          startDinoGame();
         }
 
         deltaDisplay.innerText = '--';
@@ -1011,7 +1026,11 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
             rankTag.innerText = '走火出局 (FAULT)';
             rankTag.className = 'rank-tag danger';
             haloLayer.classList.add('halo-miss');
-            playTone(200, 'sawtooth', 0.4, 0.5);
+            playTone(200, 'sawtooth', 0.25, 0.5);
+
+            bottomHint.className = 'bottom-hint wait-reset';
+            bottomHint.innerHTML = '<span>❌ 搶拍偷跑！拍擊按鈕立即重來！</span>';
+            return; // 立即返回，不鎖定 1 秒！
           } else {
             const reactionMs = data.time;
             const reactSec = (reactionMs / 1000).toFixed(3);
@@ -1039,40 +1058,14 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
             addRecord(2, reactionMs, reactSec, rank);
           }
         }
-        else if (currentGameMode === 3) {
-          // 模式 3 炸彈博弈結算
-          if (data.boom) {
-            boxSingleDigits.innerText = 'BOOM!';
-            boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' danger';
-            targetBanner.innerHTML = '💥 <strong>轟！！！炸彈引爆！太貪心啦！</strong>';
-            deltaDisplay.innerText = '引爆炸裂 (得分 0 分)';
-            deltaDisplay.className = 'delta-display delta-slow';
-            rankTag.innerText = '化為灰燼 (EXPLODED)';
-            rankTag.className = 'rank-tag danger';
-            haloLayer.classList.add('halo-miss');
-            document.body.classList.add('screen-shake');
-            setTimeout(() => document.body.classList.remove('screen-shake'), 450);
-            triggerCelebrationFX('boom');
-            playExplosion();
-          } else {
-            const score = data.score;
-            const sec = (data.survived / 1000).toFixed(2);
-            boxSingleDigits.innerText = score.toLocaleString() + ' 分';
-            boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' perfect';
-            targetBanner.innerHTML = `🏆 <strong>拆彈成功！極限生存 ${sec} 秒！</strong>`;
-            deltaDisplay.innerText = `抱走高分: ${score.toLocaleString()} 分`;
-            deltaDisplay.className = 'delta-display delta-zero';
-            rankTag.innerText = '拆彈大師 (HERO)';
-            rankTag.className = 'rank-tag perfect';
-            haloLayer.classList.add('halo-perfect');
-            triggerCelebrationFX('perfect');
-            playFanfare();
-            addRecord(3, score, sec, '拆彈大師');
-          }
-        }
 
         bottomHint.className = 'bottom-hint locked';
         bottomHint.innerHTML = '<span>⚡ 定格結算中... (1s)</span>';
+      }
+      else if (data.type === 'DINO_JUMP') {
+        if (currentGameMode === 3) {
+          dinoJump();
+        }
       }
       else if (data.type === 'WAIT_RESET') {
         bottomHint.className = 'bottom-hint wait-reset';
@@ -1320,8 +1313,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       } else if (mode === 2) { // 閃電對決 (毫秒越短越好)
         lb.push({ reactMs: p1, reactSec: p2, rank: rank, timeStr: nowStr });
         lb.sort((a,b) => a.reactMs - b.reactMs);
-      } else if (mode === 3) { // 炸彈 (得分越高越好)
-        lb.push({ score: p1, sec: p2, rank: rank, timeStr: nowStr });
+      } else if (mode === 3) { // 離線小恐龍 (得分越高越好)
+        lb.push({ score: p1, rank: p2, timeStr: nowStr });
         lb.sort((a,b) => b.score - a.score);
       }
 
@@ -1371,8 +1364,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
           html += `
             <div class="record-item">
               <span style="font-weight:900; color:var(--gold); width:28px;">${medal}</span>
-              <span style="font-family:'Orbitron'; font-weight:900; color:var(--gold);">${r.score.toLocaleString()} 分</span>
-              <span style="font-family:'Orbitron'; font-size:0.85rem; color:var(--green);">${r.sec}s 存活</span>
+              <span style="font-family:'Orbitron'; font-weight:900; color:var(--cyan);">${r.score} 分</span>
+              <span style="font-family:'Orbitron'; font-size:0.85rem; color:var(--green);">${r.rank}</span>
               <span style="font-size:0.75rem; color:var(--muted);">${r.timeStr}</span>
             </div>`;
         }
@@ -1386,6 +1379,369 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         localStorage.removeItem(key);
         renderDrawer();
       }
+    }
+
+    // ==========================================
+    // 🦖 經典單鍵離線小恐龍 (Chrome Dino Runner)
+    // ==========================================
+    const dinoCanvas = document.getElementById('dinoCanvas');
+    const dinoCtx = dinoCanvas ? dinoCanvas.getContext('2d') : null;
+    const dinoHighScoreEl = document.getElementById('dinoHighScore');
+    const dinoCurrentScoreEl = document.getElementById('dinoCurrentScore');
+    const boxDino = document.getElementById('boxDino');
+
+    let dinoHiScore = parseInt(localStorage.getItem('dino10s_hi') || '0', 10);
+    let dinoScore = 0;
+    let dinoSpeed = 6;
+    let isDinoRunning = false;
+    let isDinoOver = false;
+    let dinoLoopId = null;
+
+    const GROUND_Y = 195;
+
+    const dino = {
+      x: 50,
+      y: GROUND_Y - 46,
+      w: 42,
+      h: 46,
+      vy: 0,
+      gravity: 0.65,
+      jumpForce: -12.5,
+      isGrounded: true,
+      legFrame: 0,
+      draw: function(ctx) {
+        ctx.save();
+        ctx.fillStyle = '#00ff87';
+        ctx.shadowColor = '#00ff87';
+        ctx.shadowBlur = 8;
+
+        const x = this.x;
+        const y = this.y;
+
+        // 像素風格可愛暴龍
+        ctx.fillRect(x + 10, y + 14, 22, 22);
+        ctx.fillRect(x + 20, y + 2, 22, 16);
+        ctx.fillRect(x + 36, y + 8, 6, 8);
+        if (isDinoOver) {
+          ctx.strokeStyle = '#ff0055';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x + 26, y + 5); ctx.lineTo(x + 32, y + 11);
+          ctx.moveTo(x + 32, y + 5); ctx.lineTo(x + 26, y + 11);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = '#080e1c';
+          ctx.fillRect(x + 26, y + 6, 4, 4);
+          ctx.fillStyle = '#00ff87';
+        }
+        ctx.fillRect(x + 30, y + 22, 6, 4);
+        ctx.fillRect(x + 34, y + 24, 2, 4);
+        ctx.fillRect(x + 2, y + 18, 8, 8);
+        ctx.fillRect(x - 4, y + 22, 6, 6);
+        ctx.fillRect(x - 8, y + 25, 4, 4);
+
+        if (!this.isGrounded) {
+          ctx.fillRect(x + 12, y + 36, 4, 8);
+          ctx.fillRect(x + 22, y + 36, 4, 6);
+        } else {
+          if (this.legFrame < 4) {
+            ctx.fillRect(x + 12, y + 36, 4, 10);
+            ctx.fillRect(x + 22, y + 36, 4, 6);
+          } else {
+            ctx.fillRect(x + 12, y + 36, 4, 6);
+            ctx.fillRect(x + 22, y + 36, 4, 10);
+          }
+        }
+        ctx.restore();
+      }
+    };
+
+    let obstacles = [];
+    let clouds = [
+      { x: 100, y: 35, s: 0.3 },
+      { x: 350, y: 55, s: 0.5 },
+      { x: 620, y: 28, s: 0.4 }
+    ];
+    let groundOffset = 0;
+    let lastMilestone = 0;
+
+    function initDinoGame() {
+      if (dinoLoopId) cancelAnimationFrame(dinoLoopId);
+      isDinoRunning = false;
+      isDinoOver = false;
+      dinoScore = 0;
+      dinoSpeed = 6;
+      lastMilestone = 0;
+      obstacles = [];
+      dino.y = GROUND_Y - 46;
+      dino.vy = 0;
+      dino.isGrounded = true;
+
+      updateDinoScoreBoard();
+      drawDinoScene();
+
+      if (dinoCtx) {
+        dinoCtx.save();
+        dinoCtx.fillStyle = 'rgba(0, 242, 254, 0.9)';
+        dinoCtx.font = 'bold 20px "Share Tech Mono", monospace';
+        dinoCtx.textAlign = 'center';
+        dinoCtx.fillText('拍擊實體大按鈕 或 點擊螢幕 開始起跑！', 400, 110);
+        dinoCtx.restore();
+      }
+
+      bottomHint.className = 'bottom-hint';
+      bottomHint.innerHTML = '<span>🦖 拍擊實體大按鈕起跑跳躍！</span>';
+    }
+
+    function startDinoGame() {
+      isDinoRunning = true;
+      isDinoOver = false;
+      dinoScore = 0;
+      dinoSpeed = 6;
+      lastMilestone = 0;
+      obstacles = [];
+      dino.y = GROUND_Y - 46;
+      dino.vy = 0;
+      dino.isGrounded = true;
+
+      bottomHint.className = 'bottom-hint';
+      bottomHint.innerHTML = '<span>⚡ 奔馳中！拍擊按鈕跳躍閃避障礙！</span>';
+      playTone(650, 'square', 0.06, 0.35);
+
+      if (dinoLoopId) cancelAnimationFrame(dinoLoopId);
+      dinoLoop();
+    }
+
+    function dinoJump() {
+      if (currentGameMode !== 3) return;
+      if (isDinoOver || !isDinoRunning) {
+        startDinoGame();
+        return;
+      }
+      if (dino.isGrounded) {
+        dino.vy = dino.jumpForce;
+        dino.isGrounded = false;
+        playTone(600, 'square', 0.05, 0.3);
+      }
+    }
+
+    function updateDinoScoreBoard() {
+      const padHi = String(dinoHiScore).padStart(5, '0');
+      const padCur = String(Math.floor(dinoScore)).padStart(5, '0');
+      if (dinoHighScoreEl) dinoHighScoreEl.innerText = padHi;
+      if (dinoCurrentScoreEl) dinoCurrentScoreEl.innerText = padCur;
+    }
+
+    function spawnObstacle() {
+      const canPtero = dinoScore >= 350 && Math.random() < 0.3;
+      if (canPtero) {
+        obstacles.push({
+          type: 'ptero',
+          x: 820,
+          y: Math.random() < 0.6 ? 142 : 105,
+          w: 38,
+          h: 26,
+          wingFrame: 0
+        });
+      } else {
+        const r = Math.random();
+        if (r < 0.35) {
+          obstacles.push({ type: 'c_small', x: 820, y: GROUND_Y - 34, w: 16, h: 34 });
+        } else if (r < 0.7) {
+          obstacles.push({ type: 'c_double', x: 820, y: GROUND_Y - 34, w: 34, h: 34 });
+        } else {
+          obstacles.push({ type: 'c_big', x: 820, y: GROUND_Y - 46, w: 22, h: 46 });
+        }
+      }
+    }
+
+    function drawDinoScene() {
+      if (!dinoCtx) return;
+      dinoCtx.clearRect(0, 0, 800, 240);
+
+      // 雲朵
+      dinoCtx.save();
+      dinoCtx.fillStyle = 'rgba(255,255,255,0.15)';
+      clouds.forEach(c => {
+        dinoCtx.beginPath();
+        dinoCtx.arc(c.x, c.y, 14, 0, Math.PI * 2);
+        dinoCtx.arc(c.x + 12, c.y - 6, 16, 0, Math.PI * 2);
+        dinoCtx.arc(c.x + 26, c.y, 14, 0, Math.PI * 2);
+        dinoCtx.fill();
+      });
+      dinoCtx.restore();
+
+      // 地面
+      dinoCtx.save();
+      dinoCtx.strokeStyle = 'rgba(0, 242, 254, 0.4)';
+      dinoCtx.lineWidth = 2;
+      dinoCtx.beginPath();
+      dinoCtx.moveTo(0, GROUND_Y);
+      dinoCtx.lineTo(800, GROUND_Y);
+      dinoCtx.stroke();
+
+      dinoCtx.fillStyle = 'rgba(0, 242, 254, 0.25)';
+      for (let i = 0; i < 20; i++) {
+        const gx = ((i * 45 - groundOffset) % 800 + 800) % 800;
+        dinoCtx.fillRect(gx, GROUND_Y + 4, (i % 3 === 0 ? 12 : 5), 2);
+        dinoCtx.fillRect(gx + 18, GROUND_Y + 10, 3, 2);
+      }
+      dinoCtx.restore();
+
+      // 障礙物
+      obstacles.forEach(obs => {
+        dinoCtx.save();
+        if (obs.type === 'ptero') {
+          dinoCtx.fillStyle = '#a855f7';
+          dinoCtx.shadowColor = '#a855f7';
+          dinoCtx.shadowBlur = 8;
+          obs.wingFrame = (obs.wingFrame + 1) % 16;
+          const wingUp = obs.wingFrame < 8;
+
+          dinoCtx.fillRect(obs.x + 10, obs.y + 8, 18, 10);
+          dinoCtx.fillRect(obs.x, obs.y + 11, 10, 4);
+          dinoCtx.fillStyle = '#fff';
+          dinoCtx.fillRect(obs.x + 8, obs.y + 9, 3, 3);
+          dinoCtx.fillStyle = '#a855f7';
+          if (wingUp) {
+            dinoCtx.fillRect(obs.x + 14, obs.y - 8, 8, 16);
+            dinoCtx.fillRect(obs.x + 18, obs.y - 14, 5, 8);
+          } else {
+            dinoCtx.fillRect(obs.x + 14, obs.y + 16, 8, 14);
+            dinoCtx.fillRect(obs.x + 18, obs.y + 24, 5, 8);
+          }
+        } else {
+          dinoCtx.fillStyle = '#ff7b00';
+          dinoCtx.shadowColor = '#ff7b00';
+          dinoCtx.shadowBlur = 8;
+          if (obs.type === 'c_small') {
+            dinoCtx.fillRect(obs.x + 4, obs.y, 8, obs.h);
+            dinoCtx.fillRect(obs.x, obs.y + 8, 4, 14);
+            dinoCtx.fillRect(obs.x + 12, obs.y + 12, 4, 14);
+          } else if (obs.type === 'c_double') {
+            dinoCtx.fillRect(obs.x + 4, obs.y, 8, obs.h);
+            dinoCtx.fillRect(obs.x, obs.y + 8, 4, 14);
+            dinoCtx.fillRect(obs.x + 20, obs.y + 4, 8, obs.h - 4);
+            dinoCtx.fillRect(obs.x + 28, obs.y + 12, 4, 14);
+          } else {
+            dinoCtx.fillRect(obs.x + 6, obs.y, 10, obs.h);
+            dinoCtx.fillRect(obs.x, obs.y + 10, 6, 20);
+            dinoCtx.fillRect(obs.x + 16, obs.y + 14, 6, 20);
+          }
+        }
+        dinoCtx.restore();
+      });
+
+      dino.draw(dinoCtx);
+    }
+
+    function checkDinoCollision(d, obs) {
+      const pad = 5;
+      return (
+        d.x + pad < obs.x + obs.w &&
+        d.x + d.w - pad > obs.x &&
+        d.y + pad < obs.y + obs.h &&
+        d.y + d.h - 2 > obs.y
+      );
+    }
+
+    function endDinoGame() {
+      isDinoOver = true;
+      isDinoRunning = false;
+      playTone(150, 'sawtooth', 0.25, 0.5);
+      setTimeout(() => playTone(90, 'sawtooth', 0.35, 0.6), 80);
+      document.body.classList.add('screen-shake');
+      setTimeout(() => document.body.classList.remove('screen-shake'), 350);
+
+      const finalScore = Math.floor(dinoScore);
+      if (finalScore > dinoHiScore) {
+        dinoHiScore = finalScore;
+        localStorage.setItem('dino10s_hi', dinoHiScore.toString());
+      }
+      updateDinoScoreBoard();
+
+      drawDinoScene();
+      if (dinoCtx) {
+        dinoCtx.save();
+        dinoCtx.fillStyle = 'rgba(0,0,0,0.7)';
+        dinoCtx.fillRect(200, 60, 400, 90);
+        dinoCtx.strokeStyle = 'var(--red)';
+        dinoCtx.lineWidth = 2;
+        dinoCtx.strokeRect(200, 60, 400, 90);
+
+        dinoCtx.fillStyle = 'var(--red)';
+        dinoCtx.font = 'bold 26px "Orbitron", sans-serif';
+        dinoCtx.textAlign = 'center';
+        dinoCtx.fillText('G A M E   O V E R', 400, 100);
+
+        dinoCtx.fillStyle = 'var(--text)';
+        dinoCtx.font = 'bold 15px "Chakra Petch", sans-serif';
+        dinoCtx.fillText(`最終成績: ${finalScore} 分 · 拍擊按鈕重新開始`, 400, 130);
+        dinoCtx.restore();
+      }
+
+      let rank = '出師未捷';
+      if (finalScore >= 2000) rank = '史前霸主';
+      else if (finalScore >= 1200) rank = '跑酷大師';
+      else if (finalScore >= 600)  rank = '迅猛龍神';
+      else if (finalScore >= 300)  rank = '健步如飛';
+      else if (finalScore >= 100)  rank = '新手破殼';
+
+      addRecord(3, finalScore, rank, rank);
+      bottomHint.className = 'bottom-hint wait-reset';
+      bottomHint.innerHTML = `<span>💥 GAME OVER (${finalScore} 分)！拍擊實體按鈕重新起跑！</span>`;
+    }
+
+    function dinoLoop() {
+      if (!isDinoRunning || currentGameMode !== 3) return;
+
+      dino.y += dino.vy;
+      dino.vy += dino.gravity;
+      if (dino.y >= GROUND_Y - 46) {
+        dino.y = GROUND_Y - 46;
+        dino.vy = 0;
+        dino.isGrounded = true;
+      }
+      dino.legFrame = (dino.legFrame + 1) % 8;
+
+      dinoScore += 0.2;
+      dinoSpeed = 6 + Math.min(dinoScore / 250, 8);
+      groundOffset = (groundOffset + dinoSpeed) % 800;
+
+      const curHundred = Math.floor(dinoScore / 100);
+      if (curHundred > lastMilestone) {
+        lastMilestone = curHundred;
+        playTone(987, 'square', 0.08, 0.4);
+        setTimeout(() => playTone(1318, 'square', 0.1, 0.45), 90);
+      }
+      updateDinoScoreBoard();
+
+      clouds.forEach(c => {
+        c.x -= c.s * 1.5;
+        if (c.x < -40) c.x = 840;
+      });
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.x -= dinoSpeed;
+
+        if (checkDinoCollision(dino, obs)) {
+          endDinoGame();
+          return;
+        }
+
+        if (obs.x + obs.w < -20) {
+          obstacles.splice(i, 1);
+        }
+      }
+
+      const lastObs = obstacles[obstacles.length - 1];
+      if (!lastObs || (800 - lastObs.x >= 280 + Math.random() * 220)) {
+        spawnObstacle();
+      }
+
+      drawDinoScene();
+      dinoLoopId = requestAnimationFrame(dinoLoop);
     }
 
     function setupSSE() {
