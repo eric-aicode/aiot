@@ -69,7 +69,8 @@ enum GameMode {
   MODE_TIME_LORD = 0,    // 遊戲 1：十秒停秒挑戰 (看誰最準 10.000s)
   MODE_SPEED_TAPPER = 1, // 遊戲 2：十秒狂拍手速王 (10 秒內狂拍次數)
   MODE_LIGHTNING = 2,    // 遊戲 3：閃電神經對決 (隨機 2.5~6 秒信號瞬間拔槍)
-  MODE_DINO = 3          // 遊戲 4：經典離線小恐龍 (Chrome T-Rex 跳躍跑酷)
+  MODE_DINO = 3,         // 遊戲 4：經典離線小恐龍 (Chrome T-Rex 跳躍跑酷)
+  MODE_CLIFF = 4         // 遊戲 5：懸崖勒馬極限煞車 (第 1 拍起跑、第 2 拍極限死剎)
 };
 GameMode currentGameMode = MODE_TIME_LORD;
 
@@ -239,6 +240,15 @@ String calculateRankDino(uint32_t score) {
   return "出師未捷 (BABY)";
 }
 
+String calculateRankCliff(float distCm, bool busted) {
+  if (busted) return "粉身碎骨 (WASTED)";
+  if (distCm <= 3.0) return "神之腳步 (GODLIKE!)";
+  if (distCm <= 15.0) return "亡命車神 (MASTER)";
+  if (distCm <= 45.0) return "頂級老司機 (PRO)";
+  if (distCm <= 100.0) return "安全駕駛 (SAFE)";
+  return "膽小烏龜 (CHICKEN)";
+}
+
 // --------------------------- 核心按鍵動作邏輯 ---------------------------
 void handleActionTrigger() {
   unsigned long now = millis();
@@ -384,6 +394,39 @@ void handleActionTrigger() {
     broadcastSSE("{\"type\":\"DINO_JUMP\"}");
     Serial.println("[DINO] 拍擊按鈕！小恐龍跳躍 (JUMP)！");
   }
+  // ---------------- 模式 4：懸崖勒馬極限煞車 (方案 A：第 1 拍狂飆、第 2 拍急煞) ----------------
+  else if (currentGameMode == MODE_CLIFF) {
+    if (currentState == STATE_READY) {
+      currentState = STATE_RUNNING;
+      startTimeMs = now;
+      setLeds(true);
+      playAsyncTone(1200, 70); // 起跑轟鳴
+      String json = "{\"type\":\"START\",\"mode\":4,\"time\":" + String(startTimeMs) + "}";
+      broadcastSSE(json);
+      Serial.println("[CLIFF] 第 1 拍！油門一拜，朝萬丈懸崖極速狂飆！");
+    }
+    else if (currentState == STATE_RUNNING) {
+      currentState = STATE_RESULT;
+      stopTimeMs = now;
+      cooldownUntilMs = now + CELEBRATE_MS;
+      hasSentWaitReset = false;
+      playAsyncTone(2400, 160); // 輪胎尖叫煞車急煞音效
+      String json = "{\"type\":\"BRAKE\",\"mode\":4,\"time\":" + String(stopTimeMs) +
+                    ",\"cooldown\":" + String(CELEBRATE_MS) + "}";
+      broadcastSSE(json);
+      Serial.println("[CLIFF] 第 2 拍！緊急死踩煞車！！");
+    }
+    else if (currentState == STATE_RESULT) {
+      if (now < cooldownUntilMs) {
+        Serial.println("[GAME] 1 秒慶祝鎖定中，防連點忽略！");
+      } else {
+        currentState = STATE_READY;
+        playAsyncTone(800, 60);
+        broadcastSSE("{\"type\":\"RESET\",\"mode\":4}");
+        Serial.println("[CLIFF] 歸零重置！車輛倒車回起點，就緒。");
+      }
+    }
+  }
 }
 
 // --------------------------- Web 路由處理 ---------------------------
@@ -399,7 +442,7 @@ void handleVirtualButton() {
 void handleSetMode() {
   if (server.hasArg("set")) {
     int m = server.arg("set").toInt();
-    if (m >= 0 && m <= 3) {
+    if (m >= 0 && m <= 4) {
       currentGameMode = (GameMode)m;
     }
     currentState = STATE_READY;
@@ -407,7 +450,7 @@ void handleSetMode() {
     hasSignaled = false;
     String json = "{\"type\":\"RESET\",\"mode\":" + String(currentGameMode) + "}";
     broadcastSSE(json);
-    const char* modeNames[] = {"十秒停秒", "十秒手速", "閃電對決", "離線小恐龍"};
+    const char* modeNames[] = {"十秒停秒", "十秒手速", "閃電對決", "離線小恐龍", "懸崖勒馬"};
     Serial.printf("[GAME] 切換模式為: %s\n", modeNames[currentGameMode]);
   }
   server.send(200, "application/json", "{\"mode\":" + String(currentGameMode) + "}");
@@ -634,6 +677,19 @@ void loop() {
       playAsyncTone(1800, 150);
       broadcastSSE("{\"type\":\"LIGHTNING_SIGNAL\"}");
       Serial.println("[LIGHTNING] ⚡ 信號暴閃！BANG！火速拔槍！");
+    }
+  }
+
+  // 懸崖勒馬模式：若狂飆超過 4.5 秒都未踩煞車，判定衝落懸崖粉身碎骨！
+  if (currentGameMode == MODE_CLIFF && currentState == STATE_RUNNING) {
+    if (now - startTimeMs >= 4500) {
+      currentState = STATE_RESULT;
+      stopTimeMs = now;
+      cooldownUntilMs = now + CELEBRATE_MS;
+      hasSentWaitReset = false;
+      playAsyncTone(160, 250); // 墜崖慘叫蜂鳴
+      broadcastSSE("{\"type\":\"CLIFF_TIMEOUT\",\"mode\":4}");
+      Serial.println("[CLIFF] 超時未踩煞車！直直衝落萬丈懸崖，粉身碎骨！");
     }
   }
 

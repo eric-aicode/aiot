@@ -475,6 +475,16 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       <canvas id="dinoCanvas" width="800" height="240" style="width:100%; height:auto; background:#202124; border:1px solid #535353; border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.7);"></canvas>
     </div>
 
+    <!-- 視圖 4：🏎️ 懸崖勒馬極限煞車 (Cliff Brake Challenge) -->
+    <div id="boxCliff" style="display:none; width:100%; max-width:820px; flex-direction:column; align-items:center; gap:8px;">
+      <div style="width:100%; display:flex; justify-content:space-between; align-items:center; font-family:'Share Tech Mono', 'Courier New', monospace; font-size:clamp(0.95rem, 2.2vw, 1.35rem); font-weight:700; color:var(--muted); padding:0 8px;">
+        <span>🏎️ 車速: <strong id="cliffSpeedDisplay" style="color:var(--gold); font-family:'Orbitron';">0</strong> km/h</span>
+        <span style="color:var(--text); font-weight:800;" id="cliffStatusBanner">第 1 拍起跑狂飆 · 第 2 拍死命急煞！</span>
+        <span>🏆 最佳: <strong id="cliffBestDisplay" style="color:var(--cyan); font-family:'Orbitron';">--</strong></span>
+      </div>
+      <canvas id="cliffCanvas" width="800" height="260" style="width:100%; height:auto; background:#0b0f19; border:2px solid var(--border); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.8); touch-action:none; display:block;"></canvas>
+    </div>
+
     <!-- 定格結算資訊 -->
     <div class="result-overlay">
       <div class="delta-display" id="deltaDisplay">--</div>
@@ -592,7 +602,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       { id: 0, name: '⏱️ 十秒節拍停秒', hint: '🎯 目標時間 <strong>10.000 秒</strong>', lbKey: 'timer10s_lb', lbTitle: '🏆 今日停秒榜 (Top 5)' },
       { id: 1, name: '⚡ 十秒手速狂拍', hint: '⚡ 倒數 <strong>10.0 秒</strong> 瘋狂狂拍！', lbKey: 'tapper10s_lb', lbTitle: '⚡ 今日手速榜 (Top 5)' },
       { id: 2, name: '🤠 閃電神經對決', hint: '⚠️ 屏息等待信號... <strong>見綠光暴閃瞬間拔槍！</strong>', lbKey: 'lightning10s_lb', lbTitle: '🤠 閃電牛仔榜 (Top 5)' },
-      { id: 3, name: '🦖 經典單鍵小恐龍', hint: '🦖 拍擊實體按鈕 <strong>跳躍閃避障礙物！</strong>', lbKey: 'dino10s_lb', lbTitle: '🦖 恐龍跑酷榜 (Top 5)' }
+      { id: 3, name: '🦖 經典單鍵小恐龍', hint: '🦖 拍擊實體按鈕 <strong>跳躍閃避障礙物！</strong>', lbKey: 'dino10s_lb', lbTitle: '🦖 恐龍跑酷榜 (Top 5)' },
+      { id: 4, name: '🏎️ 懸崖勒馬極限煞車', hint: '🏎️ 第 1 拍<strong>油門狂飆</strong>！第 2 拍<strong>死命極限踩煞車！</strong>', lbKey: 'cliff10s_lb', lbTitle: '🏎️ 懸崖車神榜 (Top 5)' }
     ];
     let currentGameMode = 0;
 
@@ -678,12 +689,14 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       drawerTitle.innerText = m.lbTitle;
 
       const resultOverlay = document.querySelector('.result-overlay');
+      const boxCliff = document.getElementById('boxCliff');
 
       if (mode === 0) {
         // 模式 0：十秒停秒 (Time Lord)
         boxTimeLord.style.display = 'inline-flex';
         boxSingleDigits.style.display = 'none';
         boxDino.style.display = 'none';
+        if (boxCliff) boxCliff.style.display = 'none';
         resultOverlay.style.display = 'flex';
         updateDigitSlots(0);
         boxTimeLord.className = 'giant-digits ' + FONTS[fontIndex].id + ' idle';
@@ -692,6 +705,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         boxTimeLord.style.display = 'none';
         boxSingleDigits.style.display = 'block';
         boxDino.style.display = 'none';
+        if (boxCliff) boxCliff.style.display = 'none';
         resultOverlay.style.display = 'flex';
         boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' idle';
 
@@ -702,8 +716,17 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         boxTimeLord.style.display = 'none';
         boxSingleDigits.style.display = 'none';
         boxDino.style.display = 'flex';
+        if (boxCliff) boxCliff.style.display = 'none';
         resultOverlay.style.display = 'none';
         initDinoGame();
+      } else if (mode === 4) {
+        // 模式 4：🏎️ 懸崖勒馬極限煞車
+        boxTimeLord.style.display = 'none';
+        boxSingleDigits.style.display = 'none';
+        boxDino.style.display = 'none';
+        if (boxCliff) boxCliff.style.display = 'flex';
+        resultOverlay.style.display = 'none';
+        initCliffGame();
       }
 
       deltaDisplay.innerText = '--';
@@ -711,7 +734,9 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       rankTag.innerText = '準備就緒';
       rankTag.className = 'rank-tag';
       bottomHint.className = 'bottom-hint';
-      bottomHint.innerHTML = (mode === 3) ? '<span>🦖 拍擊實體大按鈕起跑跳躍！</span>' : '<span>🔘 拍擊實體大按鈕開始！</span>';
+      bottomHint.innerHTML = (mode === 3) ? '<span>🦖 拍擊實體大按鈕起跑跳躍！</span>' :
+                             (mode === 4) ? '<span>🏎️ 第 1 拍起跑狂飆 · 第 2 拍急煞！</span>' :
+                             '<span>🔘 拍擊實體大按鈕開始！</span>';
       playTone(700, 'sine', 0.08, 0.25);
     }
 
@@ -860,6 +885,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       if (audioCtx.state === 'suspended') audioCtx.resume();
       if (currentGameMode === 3) {
         dinoJump();
+      } else if (currentGameMode === 4) {
+        handleCliffTap();
       }
       fetch('/api/button', { method: 'POST' }).catch(()=>{});
     }
@@ -925,6 +952,9 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         } else if (currentGameMode === 3) {
           // 小恐龍起跑
           startDinoGame();
+        } else if (currentGameMode === 4) {
+          // 懸崖勒馬起跑狂飆
+          startCliffGame();
         }
 
         deltaDisplay.innerText = '--';
@@ -1065,6 +1095,16 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       else if (data.type === 'DINO_JUMP') {
         if (currentGameMode === 3) {
           dinoJump();
+        }
+      }
+      else if (data.type === 'BRAKE') {
+        if (currentGameMode === 4) {
+          brakeCliffGame();
+        }
+      }
+      else if (data.type === 'CLIFF_TIMEOUT') {
+        if (currentGameMode === 4) {
+          cliffTimeout();
         }
       }
       else if (data.type === 'WAIT_RESET') {
@@ -1316,6 +1356,13 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       } else if (mode === 3) { // 離線小恐龍 (得分越高越好)
         lb.push({ score: p1, rank: p2, timeStr: nowStr });
         lb.sort((a,b) => b.score - a.score);
+      } else if (mode === 4) { // 懸崖勒馬 (公分越短越好，墜崖排最後)
+        lb.push({ distCm: p1, status: p2, rank: rank, timeStr: nowStr });
+        lb.sort((a,b) => {
+          if (a.status === 'BUSTED' && b.status !== 'BUSTED') return 1;
+          if (a.status !== 'BUSTED' && b.status === 'BUSTED') return -1;
+          return parseFloat(a.distCm) - parseFloat(b.distCm);
+        });
       }
 
       if (lb.length > 5) lb = lb.slice(0, 5);
@@ -1365,6 +1412,17 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
             <div class="record-item">
               <span style="font-weight:900; color:var(--gold); width:28px;">${medal}</span>
               <span style="font-family:'Orbitron'; font-weight:900; color:var(--cyan);">${r.score} 分</span>
+              <span style="font-family:'Orbitron'; font-size:0.85rem; color:var(--green);">${r.rank}</span>
+              <span style="font-size:0.75rem; color:var(--muted);">${r.timeStr}</span>
+            </div>`;
+        } else if (currentGameMode === 4) {
+          const isBusted = r.status === 'BUSTED';
+          const distColor = isBusted ? 'var(--red)' : parseFloat(r.distCm) <= 5 ? 'var(--gold)' : 'var(--cyan)';
+          const text = isBusted ? '💥 墜崖粉碎' : `${r.distCm} cm`;
+          html += `
+            <div class="record-item">
+              <span style="font-weight:900; color:var(--gold); width:28px;">${medal}</span>
+              <span style="font-family:'Orbitron'; font-weight:900; color:${distColor};">${text}</span>
               <span style="font-family:'Orbitron'; font-size:0.85rem; color:var(--green);">${r.rank}</span>
               <span style="font-size:0.75rem; color:var(--muted);">${r.timeStr}</span>
             </div>`;
@@ -1845,6 +1903,622 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
       drawDinoScene();
       dinoLoopId = requestAnimationFrame(dinoLoop);
+    }
+
+    // =========================================================================
+    // 🏎️ 遊戲 5：懸崖勒馬極限煞車 (Cliff Brake Challenge Engine)
+    // =========================================================================
+    const cliffCanvas = document.getElementById('cliffCanvas');
+    const cliffCtx = cliffCanvas ? cliffCanvas.getContext('2d') : null;
+    const cliffSpeedDisplay = document.getElementById('cliffSpeedDisplay');
+    const cliffStatusBanner = document.getElementById('cliffStatusBanner');
+    const cliffBestDisplay = document.getElementById('cliffBestDisplay');
+
+    let cliffLoopId = null;
+    let cliffState = 'READY'; // READY, ACCEL, BRAKING, STOPPED, FALLING
+    const CLIFF_ROAD_Y = 195;
+    const CLIFF_EDGE_X = 640;
+    const CAR_START_X = 50;
+
+    let cliffBestCm = parseFloat(localStorage.getItem('cliff10s_best') || '999');
+
+    const car = {
+      x: CAR_START_X,
+      y: CLIFF_ROAD_Y - 24,
+      w: 60,
+      h: 24,
+      speed: 0,
+      accel: 0.35,
+      maxSpeed: 14.5,
+      angle: 0,
+      vy: 0,
+      wheelRot: 0,
+      teeter: 0,
+      finalDistCm: 0,
+      finalRank: '',
+      isBusted: false
+    };
+
+    let cliffSkidMarks = [];
+    let cliffSmokes = [];
+    let cliffExhaust = [];
+    let cliffExplosions = [];
+    let cliffRoadOffset = 0;
+
+    function updateCliffBestDisplay() {
+      if (cliffBestDisplay) {
+        cliffBestDisplay.innerText = cliffBestCm < 990 ? `${cliffBestCm} cm` : '--';
+      }
+    }
+
+    function initCliffGame() {
+      if (cliffLoopId) cancelAnimationFrame(cliffLoopId);
+      cliffState = 'READY';
+      car.x = CAR_START_X;
+      car.y = CLIFF_ROAD_Y - 24;
+      car.speed = 0;
+      car.angle = 0;
+      car.vy = 0;
+      car.wheelRot = 0;
+      car.teeter = 0;
+      car.finalDistCm = 0;
+      car.finalRank = '';
+      car.isBusted = false;
+
+      cliffSkidMarks = [];
+      cliffSmokes = [];
+      cliffExhaust = [];
+      cliffExplosions = [];
+      cliffRoadOffset = 0;
+
+      if (cliffSpeedDisplay) cliffSpeedDisplay.innerText = '0';
+      if (cliffStatusBanner) {
+        cliffStatusBanner.innerHTML = '第 1 拍起跑狂飆 · 第 2 拍死命急煞！';
+        cliffStatusBanner.style.color = 'var(--text)';
+      }
+      updateCliffBestDisplay();
+
+      bottomHint.className = 'bottom-hint';
+      bottomHint.innerHTML = '<span>🏎️ 拍擊大按鈕油門一拜狂飆！</span>';
+
+      drawCliffScene();
+    }
+
+    function startCliffGame() {
+      if (currentGameMode !== 4) return;
+      if (cliffState === 'ACCEL' || cliffState === 'BRAKING') return;
+
+      car.x = CAR_START_X;
+      car.y = CLIFF_ROAD_Y - 24;
+      car.speed = 1.2;
+      car.angle = 0;
+      car.vy = 0;
+      car.teeter = 0;
+      car.isBusted = false;
+      cliffSkidMarks = [];
+      cliffSmokes = [];
+      cliffExhaust = [];
+      cliffExplosions = [];
+
+      cliffState = 'ACCEL';
+
+      if (cliffStatusBanner) {
+        cliffStatusBanner.innerHTML = '<span style="color:var(--gold);">⚡ 油門全開狂飆中！看準時機拍擊急煞！</span>';
+      }
+      bottomHint.className = 'bottom-hint';
+      bottomHint.innerHTML = '<span>⚠️ 萬丈懸崖逼近！快拍大按鈕死命踩煞車！！</span>';
+
+      playTone(320, 'sawtooth', 0.15, 0.4);
+      setTimeout(() => playTone(540, 'sawtooth', 0.2, 0.4), 100);
+
+      if (cliffLoopId) cancelAnimationFrame(cliffLoopId);
+      cliffLoop();
+    }
+
+    function brakeCliffGame() {
+      if (currentGameMode !== 4) return;
+      if (cliffState !== 'ACCEL') return;
+
+      cliffState = 'BRAKING';
+
+      if (cliffStatusBanner) {
+        cliffStatusBanner.innerHTML = '<span style="color:var(--cyan);">💨 緊急死踩煞車中！！輪胎尖叫滑行！！</span>';
+      }
+      bottomHint.className = 'bottom-hint';
+      bottomHint.innerHTML = '<span>💨 煞車死咬！祈禱在懸崖前停住！</span>';
+
+      // 尖銳刺耳輪胎摩擦音效
+      playTone(1800, 'square', 0.12, 0.5);
+      setTimeout(() => playTone(1200, 'sawtooth', 0.25, 0.6), 60);
+      document.body.classList.add('screen-shake');
+      setTimeout(() => document.body.classList.remove('screen-shake'), 200);
+    }
+
+    function handleCliffTap() {
+      if (currentGameMode !== 4) return;
+      if (cliffState === 'READY' || cliffState === 'STOPPED') {
+        startCliffGame();
+      } else if (cliffState === 'ACCEL') {
+        brakeCliffGame();
+      }
+    }
+
+    function cliffTimeout() {
+      if (cliffState === 'ACCEL') {
+        // 超時未踩煞車，車輛直接失控飛下懸崖
+        cliffState = 'FALLING';
+      }
+    }
+
+    function spawnExplosion(x, y) {
+      for (let i = 0; i < 40; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const spd = 2 + Math.random() * 8;
+        cliffExplosions.push({
+          x: x,
+          y: y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd - 3,
+          r: 4 + Math.random() * 8,
+          color: Math.random() < 0.4 ? '#ff003c' : Math.random() < 0.7 ? '#ff7b00' : '#ffea00',
+          life: 0,
+          maxLife: 25 + Math.random() * 20
+        });
+      }
+    }
+
+    function cliffLoop() {
+      if (currentGameMode !== 4) return;
+
+      // 物理推進狀態機
+      if (cliffState === 'ACCEL') {
+        car.speed = Math.min(car.speed + car.accel, car.maxSpeed);
+        car.x += car.speed;
+        car.wheelRot += car.speed * 0.15;
+        cliffRoadOffset = (cliffRoadOffset + car.speed) % 40;
+
+        // 排氣管噴火火焰粒子
+        if (Math.random() < 0.7) {
+          cliffExhaust.push({
+            x: car.x - 4,
+            y: car.y + 16 + (Math.random() * 4 - 2),
+            vx: -(car.speed * 0.6 + Math.random() * 2),
+            vy: (Math.random() - 0.5) * 1.5,
+            r: 3 + Math.random() * 3,
+            color: Math.random() < 0.6 ? '#00f2fe' : '#ff416c',
+            alpha: 1.0
+          });
+        }
+
+        // 若直接狂飆過頭沒踩煞車 -> 飛出懸崖
+        if (car.x + car.w >= CLIFF_EDGE_X) {
+          cliffState = 'FALLING';
+          car.vy = 0;
+        }
+      }
+      else if (cliffState === 'BRAKING') {
+        // 急煞物理：劇烈滑行減速
+        car.speed = car.speed * 0.942 - 0.14;
+        car.wheelRot += car.speed * 0.08;
+        cliffRoadOffset = (cliffRoadOffset + Math.max(0, car.speed)) % 40;
+
+        if (car.speed > 0.05) {
+          car.x += car.speed;
+          car.angle = 0.04; // 急煞重心前傾下沉
+
+          // 左右雙輪胎焦黑煞車痕
+          cliffSkidMarks.push({
+            x: car.x + 10,
+            y: CLIFF_ROAD_Y - 2,
+            w: Math.max(3, car.speed * 1.2),
+            alpha: 0.85
+          });
+          cliffSkidMarks.push({
+            x: car.x + 46,
+            y: CLIFF_ROAD_Y - 2,
+            w: Math.max(3, car.speed * 1.2),
+            alpha: 0.85
+          });
+
+          // 輪胎大量冒濃黑白煙
+          for (let s = 0; s < 2; s++) {
+            cliffSmokes.push({
+              x: car.x + (s === 0 ? 10 : 46) + (Math.random() * 6 - 3),
+              y: CLIFF_ROAD_Y - 4,
+              vx: -(car.speed * 0.3 + Math.random() * 1.5),
+              vy: -(Math.random() * 2 + 1),
+              r: 4 + Math.random() * 6,
+              alpha: 0.8
+            });
+          }
+        } else {
+          // 車輛徹底靜止！
+          car.speed = 0;
+          car.angle = 0;
+
+          // 結算：安全停在崖上 vs 衝過頭掉落懸崖
+          if (car.x + car.w <= CLIFF_EDGE_X) {
+            // 🎉 成功煞住！
+            cliffState = 'STOPPED';
+            const distPx = CLIFF_EDGE_X - (car.x + car.w);
+            const distCm = Math.max(0.1, parseFloat((distPx * 0.42).toFixed(1)));
+            car.finalDistCm = distCm;
+            car.isBusted = false;
+
+            if (distPx <= 12) {
+              car.teeter = 1; // 極限距離，車輪懸空輕微晃動！
+            }
+
+            let rank = '膽小烏龜 (CHICKEN)';
+            if (distCm <= 3.0) rank = '神之腳步 (GODLIKE!)';
+            else if (distCm <= 15.0) rank = '亡命車神 (MASTER)';
+            else if (distCm <= 45.0) rank = '頂級老司機 (PRO)';
+            else if (distCm <= 100.0) rank = '安全駕駛 (SAFE)';
+            car.finalRank = rank;
+
+            if (distCm < cliffBestCm) {
+              cliffBestCm = distCm;
+              localStorage.setItem('cliff10s_best', cliffBestCm.toString());
+              updateCliffBestDisplay();
+            }
+
+            playTone(880, 'square', 0.1, 0.4);
+            setTimeout(() => playTone(1320, 'square', 0.2, 0.5), 100);
+            if (distCm <= 15.0) playFanfare();
+
+            addRecord(4, distCm, 'SAFE', rank);
+
+            if (cliffStatusBanner) {
+              cliffStatusBanner.innerHTML = `<span style="color:var(--green);">🏆 成功勒馬！離懸崖僅 <strong>${distCm} cm</strong>！</span>`;
+            }
+            bottomHint.className = 'bottom-hint wait-reset';
+            bottomHint.innerHTML = `<span>🏆 煞車成功 (${distCm} cm / ${rank})！拍擊按鈕重回起跑線！</span>`;
+          } else {
+            // 衝出懸崖！
+            cliffState = 'FALLING';
+          }
+        }
+      }
+      else if (cliffState === 'FALLING') {
+        // 自由落體墜崖物理
+        car.vy += 0.65;
+        car.y += car.vy;
+        car.x += Math.max(car.speed, 3.2);
+        car.angle += 0.06;
+
+        if (car.y >= 260) {
+          // 墜入深淵爆炸！
+          cliffState = 'STOPPED';
+          car.isBusted = true;
+          car.finalDistCm = 0;
+          car.finalRank = '粉身碎骨 (WASTED)';
+
+          spawnExplosion(Math.min(760, car.x + 20), 230);
+          playTone(90, 'sawtooth', 0.4, 0.7);
+          setTimeout(() => playTone(60, 'sawtooth', 0.5, 0.8), 80);
+          document.body.classList.add('screen-shake');
+          setTimeout(() => document.body.classList.remove('screen-shake'), 450);
+
+          addRecord(4, 0, 'BUSTED', '粉身碎骨');
+
+          if (cliffStatusBanner) {
+            cliffStatusBanner.innerHTML = '<span style="color:var(--red);">💥 WASTED！墜崖粉身碎骨！(0 分)</span>';
+          }
+          bottomHint.className = 'bottom-hint wait-reset';
+          bottomHint.innerHTML = '<span>💥 墜崖粉身碎骨！拍擊按鈕重回起跑線！</span>';
+        }
+      }
+
+      // 更新車速 HUD
+      if (cliffSpeedDisplay) {
+        cliffSpeedDisplay.innerText = Math.round(car.speed * 18);
+      }
+
+      // 更新煙霧與排氣粒子
+      for (let i = cliffSmokes.length - 1; i >= 0; i--) {
+        const p = cliffSmokes[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.r += 0.35;
+        p.alpha -= 0.035;
+        if (p.alpha <= 0) cliffSmokes.splice(i, 1);
+      }
+      for (let i = cliffExhaust.length - 1; i >= 0; i--) {
+        const p = cliffExhaust[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.r *= 0.94;
+        p.alpha -= 0.06;
+        if (p.alpha <= 0 || p.r <= 0.5) cliffExhaust.splice(i, 1);
+      }
+      for (let i = cliffExplosions.length - 1; i >= 0; i--) {
+        const e = cliffExplosions[i];
+        e.x += e.vx;
+        e.y += e.vy;
+        e.vy += 0.2;
+        e.life++;
+        if (e.life >= e.maxLife) cliffExplosions.splice(i, 1);
+      }
+
+      drawCliffScene();
+      cliffLoopId = requestAnimationFrame(cliffLoop);
+    }
+
+    function drawCliffScene() {
+      if (!cliffCtx) return;
+
+      // 1. 絕美暮色天際線與星空背景
+      const skyGrad = cliffCtx.createLinearGradient(0, 0, 0, CLIFF_ROAD_Y);
+      skyGrad.addColorStop(0, '#070c18');
+      skyGrad.addColorStop(0.6, '#1f1338');
+      skyGrad.addColorStop(1, '#6b1836');
+      cliffCtx.fillStyle = skyGrad;
+      cliffCtx.fillRect(0, 0, 800, 260);
+
+      // 遠景剪影山脈
+      cliffCtx.fillStyle = '#101322';
+      cliffCtx.beginPath();
+      cliffCtx.moveTo(0, CLIFF_ROAD_Y);
+      cliffCtx.lineTo(60, 140);
+      cliffCtx.lineTo(160, 165);
+      cliffCtx.lineTo(280, 130);
+      cliffCtx.lineTo(420, 170);
+      cliffCtx.lineTo(540, 145);
+      cliffCtx.lineTo(640, 175);
+      cliffCtx.lineTo(640, CLIFF_ROAD_Y);
+      cliffCtx.closePath();
+      cliffCtx.fill();
+
+      // 2. 右側萬丈懸崖深淵與海浪
+      // 懸崖垂直岩壁
+      const cliffWallGrad = cliffCtx.createLinearGradient(CLIFF_EDGE_X, 0, 800, 0);
+      cliffWallGrad.addColorStop(0, '#1c1917');
+      cliffWallGrad.addColorStop(0.4, '#120f0d');
+      cliffWallGrad.addColorStop(1, '#080605');
+      cliffCtx.fillStyle = cliffWallGrad;
+      cliffCtx.fillRect(CLIFF_EDGE_X, CLIFF_ROAD_Y, 800 - CLIFF_EDGE_X, 260 - CLIFF_ROAD_Y);
+
+      // 深淵底部怒濤海水
+      const seaGrad = cliffCtx.createLinearGradient(CLIFF_EDGE_X, 220, 800, 260);
+      seaGrad.addColorStop(0, '#0c2238');
+      seaGrad.addColorStop(1, '#040b14');
+      cliffCtx.fillStyle = seaGrad;
+      cliffCtx.fillRect(CLIFF_EDGE_X + 15, 225, 800 - CLIFF_EDGE_X - 15, 35);
+
+      // 海浪拍打白沫
+      cliffCtx.fillStyle = 'rgba(165, 243, 252, 0.4)';
+      const waveT = Date.now() * 0.003;
+      for (let w = CLIFF_EDGE_X + 18; w < 790; w += 22) {
+        cliffCtx.beginPath();
+        cliffCtx.arc(w, 230 + Math.sin(waveT + w) * 3, 7, 0, Math.PI * 2);
+        cliffCtx.fill();
+      }
+
+      // 3. 柏油路面 (0 到 CLIFF_EDGE_X)
+      // 道路基礎與護欄
+      cliffCtx.fillStyle = '#0f172a';
+      cliffCtx.fillRect(0, CLIFF_ROAD_Y, CLIFF_EDGE_X, 260 - CLIFF_ROAD_Y);
+
+      // 瀝青柏油路面
+      cliffCtx.fillStyle = '#1e222d';
+      cliffCtx.fillRect(0, CLIFF_ROAD_Y - 20, CLIFF_EDGE_X, 20);
+
+      // 繪製地表煞車痕 (Skid Marks)
+      cliffSkidMarks.forEach(skid => {
+        cliffCtx.fillStyle = `rgba(18, 18, 20, ${skid.alpha})`;
+        cliffCtx.fillRect(skid.x, skid.y, skid.w, 3);
+      });
+
+      // 路面黃色虛線
+      cliffCtx.fillStyle = '#eab308';
+      for (let x = 0; x < CLIFF_EDGE_X - 80; x += 36) {
+        const lineX = ((x - cliffRoadOffset) % (CLIFF_EDGE_X - 80) + (CLIFF_EDGE_X - 80)) % (CLIFF_EDGE_X - 80);
+        cliffCtx.fillRect(lineX, CLIFF_ROAD_Y - 11, 18, 2);
+      }
+
+      // 4. 懸崖危險警示區 (540 到 CLIFF_EDGE_X)
+      // 黃黑相間斜紋危險警示區
+      cliffCtx.save();
+      cliffCtx.beginPath();
+      cliffCtx.rect(530, CLIFF_ROAD_Y - 20, CLIFF_EDGE_X - 530, 20);
+      cliffCtx.clip();
+      for (let hx = 510; hx < CLIFF_EDGE_X + 20; hx += 16) {
+        cliffCtx.fillStyle = '#facc15';
+        cliffCtx.beginPath();
+        cliffCtx.moveTo(hx, CLIFF_ROAD_Y);
+        cliffCtx.lineTo(hx + 8, CLIFF_ROAD_Y - 20);
+        cliffCtx.lineTo(hx + 16, CLIFF_ROAD_Y - 20);
+        cliffCtx.lineTo(hx + 8, CLIFF_ROAD_Y);
+        cliffCtx.closePath();
+        cliffCtx.fill();
+      }
+      cliffCtx.restore();
+
+      // 崖邊警示立牌
+      cliffCtx.fillStyle = '#64748b';
+      cliffCtx.fillRect(525, CLIFF_ROAD_Y - 36, 4, 18);
+      cliffCtx.fillStyle = '#ef4444';
+      cliffCtx.beginPath();
+      cliffCtx.moveTo(527, CLIFF_ROAD_Y - 50);
+      cliffCtx.lineTo(514, CLIFF_ROAD_Y - 32);
+      cliffCtx.lineTo(540, CLIFF_ROAD_Y - 32);
+      cliffCtx.closePath();
+      cliffCtx.fill();
+      cliffCtx.fillStyle = '#fff';
+      cliffCtx.font = 'bold 10px sans-serif';
+      cliffCtx.fillText('!', 525, CLIFF_ROAD_Y - 36);
+
+      // 崖邊暴閃警告燈
+      const beaconOn = Math.floor(Date.now() / 200) % 2 === 0;
+      cliffCtx.fillStyle = '#334155';
+      cliffCtx.fillRect(CLIFF_EDGE_X - 6, CLIFF_ROAD_Y - 28, 6, 10);
+      cliffCtx.fillStyle = beaconOn ? '#ef4444' : '#7f1d1d';
+      cliffCtx.beginPath();
+      cliffCtx.arc(CLIFF_EDGE_X - 3, CLIFF_ROAD_Y - 30, 4, 0, Math.PI * 2);
+      cliffCtx.fill();
+
+      // 5. 排氣火焰與輪胎煙霧
+      cliffExhaust.forEach(p => {
+        cliffCtx.fillStyle = p.color;
+        cliffCtx.beginPath();
+        cliffCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        cliffCtx.fill();
+      });
+
+      cliffSmokes.forEach(p => {
+        cliffCtx.fillStyle = `rgba(220, 225, 230, ${p.alpha})`;
+        cliffCtx.beginPath();
+        cliffCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        cliffCtx.fill();
+      });
+
+      // 6. 繪製精緻賽車本體
+      if (car.y < 250) {
+        cliffCtx.save();
+        const teeterAngle = (car.teeter && cliffState === 'STOPPED') ? Math.sin(Date.now() * 0.015) * 0.05 : 0;
+        cliffCtx.translate(car.x + car.w / 2, car.y + car.h / 2);
+        cliffCtx.rotate(car.angle + teeterAngle);
+
+        const cx = -car.w / 2;
+        const cy = -car.h / 2;
+
+        // 車身流線跑車底色 (火焰紅)
+        cliffCtx.fillStyle = '#e11d48';
+        cliffCtx.beginPath();
+        cliffCtx.roundRect(cx, cy + 8, car.w, car.h - 8, 4);
+        cliffCtx.fill();
+
+        // 跑車駕駛座艙頂棚
+        cliffCtx.fillStyle = '#0f172a';
+        cliffCtx.beginPath();
+        cliffCtx.moveTo(cx + 14, cy + 8);
+        cliffCtx.lineTo(cx + 22, cy + 1);
+        cliffCtx.lineTo(cx + 44, cy + 1);
+        cliffCtx.lineTo(cx + 50, cy + 8);
+        cliffCtx.closePath();
+        cliffCtx.fill();
+
+        // 擋風玻璃反光
+        cliffCtx.fillStyle = '#38bdf8';
+        cliffCtx.beginPath();
+        cliffCtx.moveTo(cx + 42, cy + 3);
+        cliffCtx.lineTo(cx + 48, cy + 8);
+        cliffCtx.lineTo(cx + 34, cy + 8);
+        cliffCtx.lineTo(cx + 34, cy + 3);
+        cliffCtx.closePath();
+        cliffCtx.fill();
+
+        // 尾翼
+        cliffCtx.fillStyle = '#be123c';
+        cliffCtx.fillRect(cx - 2, cy + 3, 6, 3);
+        cliffCtx.fillRect(cx, cy + 6, 2, 4);
+
+        // 前大燈與車前照光
+        cliffCtx.fillStyle = '#fef08a';
+        cliffCtx.fillRect(cx + car.w - 4, cy + 11, 4, 4);
+        if (car.speed > 0) {
+          cliffCtx.fillStyle = 'rgba(254, 240, 138, 0.15)';
+          cliffCtx.beginPath();
+          cliffCtx.moveTo(cx + car.w, cy + 13);
+          cliffCtx.lineTo(cx + car.w + 90, cy + 5);
+          cliffCtx.lineTo(cx + car.w + 90, cy + 22);
+          cliffCtx.closePath();
+          cliffCtx.fill();
+        }
+
+        // 後煞車燈 (急煞時強烈暴亮紅光)
+        const isBraking = cliffState === 'BRAKING';
+        cliffCtx.fillStyle = isBraking ? '#ff003c' : '#7f1d1d';
+        cliffCtx.fillRect(cx - 2, cy + 11, 3, 4);
+        if (isBraking) {
+          cliffCtx.shadowColor = '#ff003c';
+          cliffCtx.shadowBlur = 8;
+          cliffCtx.fillRect(cx - 2, cy + 11, 3, 4);
+          cliffCtx.shadowBlur = 0;
+        }
+
+        // 前後輪胎 (黑橡膠 + 銀色輪輻)
+        const drawWheel = (wx, wy) => {
+          cliffCtx.save();
+          cliffCtx.translate(wx, wy);
+          cliffCtx.rotate(car.wheelRot);
+          cliffCtx.fillStyle = '#0f172a';
+          cliffCtx.beginPath();
+          cliffCtx.arc(0, 0, 7, 0, Math.PI * 2);
+          cliffCtx.fill();
+          cliffCtx.fillStyle = '#94a3b8';
+          cliffCtx.beginPath();
+          cliffCtx.arc(0, 0, 3.5, 0, Math.PI * 2);
+          cliffCtx.fill();
+          cliffCtx.strokeStyle = '#e2e8f0';
+          cliffCtx.lineWidth = 1;
+          cliffCtx.beginPath();
+          cliffCtx.moveTo(-5, 0); cliffCtx.lineTo(5, 0);
+          cliffCtx.moveTo(0, -5); cliffCtx.lineTo(0, 5);
+          cliffCtx.stroke();
+          cliffCtx.restore();
+        };
+
+        drawWheel(cx + 13, cy + car.h - 1);
+        drawWheel(cx + 47, cy + car.h - 1);
+
+        cliffCtx.restore();
+      }
+
+      // 7. 爆炸特效碎片
+      cliffExplosions.forEach(e => {
+        cliffCtx.fillStyle = e.color;
+        cliffCtx.beginPath();
+        cliffCtx.arc(e.x, e.y, e.r * (1 - e.life / e.maxLife), 0, Math.PI * 2);
+        cliffCtx.fill();
+      });
+
+      // 8. 結算成績大卡牌 HUD
+      if (cliffState === 'STOPPED') {
+        cliffCtx.save();
+        if (!car.isBusted) {
+          // 🏆 煞車成功！
+          cliffCtx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+          cliffCtx.fillRect(160, 40, 480, 110);
+          cliffCtx.strokeStyle = car.finalDistCm <= 15 ? 'var(--gold)' : 'var(--cyan)';
+          cliffCtx.lineWidth = 2.5;
+          cliffCtx.strokeRect(160, 40, 480, 110);
+
+          cliffCtx.fillStyle = car.finalDistCm <= 15 ? 'var(--gold)' : 'var(--cyan)';
+          cliffCtx.font = 'bold 24px "Orbitron", monospace';
+          cliffCtx.textAlign = 'center';
+          cliffCtx.fillText(`距離崖邊: ${car.finalDistCm} cm`, 400, 80);
+
+          cliffCtx.fillStyle = 'var(--text)';
+          cliffCtx.font = 'bold 16px "Chakra Petch", sans-serif';
+          cliffCtx.fillText(`榮譽稱號: ${car.finalRank}`, 400, 110);
+
+          cliffCtx.fillStyle = 'var(--muted)';
+          cliffCtx.font = '13px sans-serif';
+          cliffCtx.fillText('拍擊實體大按鈕 或 點擊螢幕 重回起點！', 400, 134);
+        } else {
+          // 💥 墜崖粉碎！
+          cliffCtx.fillStyle = 'rgba(30, 10, 15, 0.92)';
+          cliffCtx.fillRect(160, 40, 480, 110);
+          cliffCtx.strokeStyle = 'var(--red)';
+          cliffCtx.lineWidth = 2.5;
+          cliffCtx.strokeRect(160, 40, 480, 110);
+
+          cliffCtx.fillStyle = 'var(--red)';
+          cliffCtx.font = 'bold 28px "Orbitron", monospace';
+          cliffCtx.textAlign = 'center';
+          cliffCtx.fillText('W A S T E D', 400, 80);
+
+          cliffCtx.fillStyle = '#fca5a5';
+          cliffCtx.font = 'bold 16px "Chakra Petch", sans-serif';
+          cliffCtx.fillText('💥 直墜萬丈深淵！粉身碎骨 (0 分)', 400, 110);
+
+          cliffCtx.fillStyle = 'var(--muted)';
+          cliffCtx.font = '13px sans-serif';
+          cliffCtx.fillText('拍擊實體大按鈕 重新挑戰！', 400, 134);
+        }
+        cliffCtx.restore();
+      }
     }
 
     function setupSSE() {
