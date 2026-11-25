@@ -173,12 +173,14 @@ void updateLeds() {
   }
 }
 
-// --------------------------- SSE 廣播事件 ---------------------------
+// --------------------------- SSE 廣播事件 (極速零延遲傳輸) ---------------------------
 void broadcastSSE(const String& payload) {
   String msg = "data: " + payload + "\n\n";
   for (int i = 0; i < MAX_SSE_CLIENTS; i++) {
     if (sseClients[i] && sseClients[i].connected()) {
+      sseClients[i].setNoDelay(true); // 關閉 TCP Nagle 演算法，禁止封包緩衝積累！
       sseClients[i].print(msg);
+      sseClients[i].flush();          // 強制即刻推射出去，每一擊即時同步！
     }
   }
 }
@@ -311,9 +313,11 @@ void handleSetMode() {
 
 void handleSSE() {
   WiFiClient client = server.client();
+  client.setNoDelay(true);
   for (int i = 0; i < MAX_SSE_CLIENTS; i++) {
     if (!sseClients[i] || !sseClients[i].connected()) {
       sseClients[i] = client;
+      sseClients[i].setNoDelay(true);
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: text/event-stream;charset=UTF-8");
       client.println("Cache-Control: no-cache");
