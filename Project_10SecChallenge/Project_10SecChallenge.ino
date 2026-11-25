@@ -7,6 +7,8 @@
       * 歸零待機 (00.000) -> 拍第 1 下狂飆 -> 拍第 2 下定格看誰命中 10.000 秒 -> 拍第 3 下歸零。
   - 模式 1【十秒手速狂拍 (Speed Tapper)】：
       * 倒數 10.0 秒內瘋狂狂拍按鈕，超巨型數字計算總次數 (Hits) 與每秒手速 (CPS)！
+      * 電競級 Press-Release 完整雙向狀態機：必須完整放開才能記下一次，徹底杜絕按住不放作弊！
+      * 狂拍期間停用硬體蜂鳴器中斷，釋放 100% CPU，極速捕捉每秒 25+ 次拍擊絕不漏點！
       * 倒數 10 秒結束自動定格結算，拍一下歸零，再拍才啟動！
   
   核心規格：
@@ -43,7 +45,7 @@
 
 #define DNS_PORT         53
 #define MAX_SSE_CLIENTS  4
-#define CELEBRATE_MS     1000  // 王董指定：定格慶祝與防連點空窗期 (恰好 1.0 秒)
+#define CELEBRATE_MS     1000  // 定格慶祝與防連點空窗期 (1.0 秒)
 
 // EEPROM 持久化 Wi-Fi 結構
 #define EEPROM_MAGIC     0x55AA10EC
@@ -78,10 +80,15 @@ bool hasSentWaitReset = false;
 // 手速模式專用變數
 uint32_t tapperHits = 0;
 
-// 按鍵去彈跳處理
-int lastButtonState = HIGH;
-unsigned long lastDebounceTime = 0;
-const unsigned long DEBOUNCE_DELAY_MS = 25;
+// --------------------------- 電競級 Press-Release 按鍵狀態機 ---------------------------
+// 必須完整放開 (Release) 才能再記下一次，按著不放絕對不計次！
+enum ButtonPhysicalState {
+  BTN_STATE_RELEASED,   // 按鍵處於放開高電位 (已就緒等待下次按下)
+  BTN_STATE_PRESSED     // 按鍵已按下並計次 (必須等完全放開才能記下一次！)
+};
+ButtonPhysicalState btnPhysState = BTN_STATE_RELEASED;
+unsigned long btnStateChangeTime = 0;
+const unsigned long BTN_DEBOUNCE_MS = 10; // 10ms 超高速電競級去彈跳 (可支援高達 25+ CPS)
 
 // LED & 蜂鳴器非阻塞控制
 unsigned long buzzerOffTime = 0;
@@ -105,7 +112,6 @@ void loadWifiFromEEPROM() {
     WiFi.begin(cfg.ssid, cfg.pass);
   } else {
     Serial.println("[EEPROM] 尚無儲存的 Wi-Fi 紀錄。");
-    // 仍可嘗試晶片出廠快閃預設
     WiFi.begin();
   }
 }
@@ -153,8 +159,6 @@ void updateLeds() {
   } else if (currentState == STATE_RUNNING) {
     if (currentGameMode == MODE_TIME_LORD) {
       setLeds(true);
-    } else {
-      // 手速模式：每次拍擊時爆亮
     }
   } else if (currentState == STATE_RESULT) {
     if (now < cooldownUntilMs) {
@@ -250,20 +254,22 @@ void handleActionTrigger() {
       currentState = STATE_RUNNING;
       startTimeMs = now;
       tapperHits = 1;
-      playAsyncTone(1400, 70);
       setLeds(true);
+      // 起跑蜂鳴提示
+      playAsyncTone(1400, 60);
 
-      String json = "{\"type\":\"START\",\"mode\":1,\"time\":" + String(startTimeMs) + ",\"hits\":1}";
+      String json = "{\"type\":\"START\",\"mode\":1,\"time\":" + String(startTimeMs) + ",\"h\":1}";
       broadcastSSE(json);
       Serial.println("[SPEED-TAPPER] 倒數 10 秒狂拍開始！第 1 下！");
     }
     else if (currentState == STATE_RUNNING) {
-      // 狂按計次！
+      // 狂拍計次！
       tapperHits++;
-      playAsyncTone(1200 + min(tapperHits * 15, 800U), 25);
+      // 注意：狂拍期間完全不呼叫 tone()，避免軟體中斷阻塞，將 100% CPU 留給極速按鍵掃描！
       setLeds(true);
 
-      String json = "{\"type\":\"HIT\",\"hits\":" + String(tapperHits) + "}";
+      // 輕量化廣播
+      String json = "{\"type\":\"HIT\",\"h\":" + String(tapperHits) + "}";
       broadcastSSE(json);
     }
     else if (currentState == STATE_RESULT) {
@@ -316,11 +322,10 @@ void handleSSE() {
       client.println();
       client.flush();
 
-      // 回報當前模式與狀態
       if (currentState == STATE_RUNNING) {
         String json = "{\"type\":\"START\",\"mode\":" + String(currentGameMode) +
                       ",\"time\":" + String(startTimeMs) +
-                      ",\"hits\":" + String(tapperHits) + "}";
+                      ",\"h\":" + String(tapperHits) + "}";
         client.print("data: " + json + "\n\n");
       } else if (currentState == STATE_READY) {
         client.print("data: {\"type\":\"RESET\",\"mode\":" + String(currentGameMode) + "}\n\n");
@@ -366,9 +371,7 @@ void handleWifiConnect() {
   String pass = server.hasArg("pass") ? server.arg("pass") : "";
 
   Serial.printf("[WIFI] 收到連線要求: SSID=%s\n", ssid.c_str());
-  // 1. 永久寫入 EEPROM
   saveWifiToEEPROM(ssid, pass);
-  // 2. 進行連線
   WiFi.begin(ssid.c_str(), pass.c_str());
 
   server.send(200, "application/json", "{\"status\":\"CONNECTING\"}");
@@ -441,7 +444,6 @@ void setup() {
   WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
   WiFi.softAP(apName);
 
-  // 從 EEPROM 載入歷史 Wi-Fi 設定自動連線
   loadWifiFromEEPROM();
 
   Serial.printf("[WIFI] 專屬熱點: %s (http://192.168.4.1/)\n", apName);
@@ -525,20 +527,32 @@ void loop() {
     }
   }
 
-  // 實體按鍵讀取與去彈跳 (Active Low)
-  int reading = digitalRead(PIN_BUTTON);
-  if (reading != lastButtonState) {
-    lastDebounceTime = now;
-  }
+  // --------------------------- 🎯 電競級 Press-Release 按鍵引擎 ---------------------------
+  // 必須完完整整地經歷「按下 (Press) ➔ 抬起 (Release)」，才能計下一次！
+  // 按住按鈕不放絕對不累加，杜絕作弊；10ms 極速響應，絕不漏拍！
+  int pinVal = digitalRead(PIN_BUTTON);
 
-  if ((now - lastDebounceTime) > DEBOUNCE_DELAY_MS) {
-    static int buttonState = HIGH;
-    if (reading != buttonState) {
-      buttonState = reading;
-      if (buttonState == LOW) {
-        handleActionTrigger();
+  if (btnPhysState == BTN_STATE_RELEASED) {
+    // 當前處於放開狀態，等待玩家按下 (Active Low)
+    if (pinVal == LOW) {
+      if (now - btnStateChangeTime >= BTN_DEBOUNCE_MS) {
+        btnPhysState = BTN_STATE_PRESSED;
+        btnStateChangeTime = now;
+        handleActionTrigger(); // 觸發按下事件！
       }
+    } else {
+      btnStateChangeTime = now;
+    }
+  } else { // btnPhysState == BTN_STATE_PRESSED
+    // 當前處於按下狀態，必須完全放開 (HIGH) 才能解鎖蓄力！
+    if (pinVal == HIGH) {
+      if (now - btnStateChangeTime >= BTN_DEBOUNCE_MS) {
+        btnPhysState = BTN_STATE_RELEASED;
+        btnStateChangeTime = now;
+        // 成功放開，下次按下即可立刻計次！
+      }
+    } else {
+      btnStateChangeTime = now; // 依然按著，持續鎖定
     }
   }
-  lastButtonState = reading;
 }

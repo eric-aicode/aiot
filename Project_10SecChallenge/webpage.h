@@ -852,9 +852,9 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       }
       else if (data.type === 'HIT') {
         // 手速模式即時點擊加算
-        currentHits = data.hits;
+        currentHits = (data.h !== undefined) ? data.h : data.hits;
         boxSpeedTapper.innerText = currentHits;
-        playTone(1200 + Math.min(currentHits * 15, 800), 'sine', 0.03, 0.2);
+        playTone(1000 + Math.min(currentHits * 15, 800), 'sine', 0.03, 0.2);
       }
       else if (data.type === 'STOP') {
         currentState = STATE_RESULT;
