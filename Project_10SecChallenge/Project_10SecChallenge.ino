@@ -1,15 +1,22 @@
 /*
   ================================================================================
-  ⏱️ Project: 10-Second Challenge (十秒挑戰雙競技 · 巨幕旗艦版)
+  ⏱️ Project: 10-Second Challenge (ArenaPod 四合一單鍵競技場 · 巨幕旗艦版)
   
-  雙遊戲模式切換：
+  四合一遊戲模式即時切換：
   - 模式 0【十秒停秒挑戰 (Time Lord)】：
       * 歸零待機 (00.000) -> 拍第 1 下狂飆 -> 拍第 2 下定格看誰命中 10.000 秒 -> 拍第 3 下歸零。
   - 模式 1【十秒手速狂拍 (Speed Tapper)】：
       * 倒數 10.0 秒內瘋狂狂拍按鈕，超巨型數字計算總次數 (Hits) 與每秒手速 (CPS)！
       * 電競級 Press-Release 完整雙向狀態機：必須完整放開才能記下一次，徹底杜絕按住不放作弊！
       * 狂拍期間停用硬體蜂鳴器中斷，釋放 100% CPU，極速捕捉每秒 25+ 次拍擊絕不漏點！
-      * 倒數 10 秒結束自動定格結算，拍一下歸零，再拍才啟動！
+  - 模式 2【閃電神經對決 (Lightning Reflex)】：
+      * 拍一下進入屏息倒數 (隨機 2.5 ~ 6.0 秒無聲等待)。
+      * 綠光暴閃 + 1800Hz 信號響起瞬間，火速拔槍拍擊！毫秒級 (ms) 計算極限神經反應時間！
+      * 信號未響前搶拍偷跑直接判定出局 (FAULT)！
+  - 模式 3【心跳炸彈博弈 (Heartbeat Bomb)】：
+      * 拍一下啟動炸彈，隨時間分數呈二次方指數狂飆！
+      * 按鈕 LED 如心跳般越來越快急促跳動！
+      * 隱藏引爆時間 (隨機 5.5 ~ 11.5 秒)，引爆前拍擊及時拆彈落袋抱走高分；貪心太晚引爆則分數歸零 (BOOM)！
   
   核心規格：
   - EEPROM 持久化 Wi-Fi 記憶：即使重新有線燒錄或 OTA 升級，依然永久記住上次連過的 Wi-Fi 與密碼，開機秒連！
@@ -61,7 +68,9 @@ const char DEFAULT_CLOUD_URL[] = "https://drive.google.com/uc?export=download&id
 // --------------------------- 遊戲模式與狀態機 ---------------------------
 enum GameMode {
   MODE_TIME_LORD = 0,    // 遊戲 1：十秒停秒挑戰 (看誰最準 10.000s)
-  MODE_SPEED_TAPPER = 1  // 遊戲 2：十秒狂拍手速王 (10 秒內狂拍次數)
+  MODE_SPEED_TAPPER = 1, // 遊戲 2：十秒狂拍手速王 (10 秒內狂拍次數)
+  MODE_LIGHTNING = 2,    // 遊戲 3：閃電神經對決 (隨機 2.5~6 秒信號瞬間拔槍)
+  MODE_BOMB = 3          // 遊戲 4：心跳炸彈博弈 (隨機 5.5~11.5 秒引爆，極限拆彈)
 };
 GameMode currentGameMode = MODE_TIME_LORD;
 
@@ -79,6 +88,14 @@ bool hasSentWaitReset = false;
 
 // 手速模式專用變數
 uint32_t tapperHits = 0;
+
+// 閃電對決模式專用變數
+unsigned long signalTriggerTimeMs = 0;
+unsigned long signalStartTimeMs = 0;
+bool hasSignaled = false;
+
+// 心跳炸彈模式專用變數
+unsigned long bombBoomTimeMs = 0;
 
 // --------------------------- 電競級 Press-Release 按鍵狀態機 ---------------------------
 // 必須完整放開 (Release) 才能再記下一次，按著不放絕對不計次！
@@ -157,8 +174,23 @@ void updateLeds() {
       nextLedBlinkTime = now + 600;
     }
   } else if (currentState == STATE_RUNNING) {
-    if (currentGameMode == MODE_TIME_LORD) {
+    if (currentGameMode == MODE_TIME_LORD || currentGameMode == MODE_SPEED_TAPPER) {
       setLeds(true);
+    } else if (currentGameMode == MODE_LIGHTNING) {
+      // 閃電對決：信號響起前燈滅(屏息)，信號響起瞬間燈亮！
+      setLeds(hasSignaled);
+    } else if (currentGameMode == MODE_BOMB) {
+      // 心跳炸彈：隨時間越來越快的心跳急促閃爍！
+      unsigned long elapsed = now - startTimeMs;
+      unsigned long interval = 500;
+      if (elapsed > 6000) interval = 100;
+      else if (elapsed > 4000) interval = 200;
+      else if (elapsed > 2000) interval = 320;
+      if (now >= nextLedBlinkTime) {
+        ledState = !ledState;
+        setLeds(ledState);
+        nextLedBlinkTime = now + interval;
+      }
     }
   } else if (currentState == STATE_RESULT) {
     if (now < cooldownUntilMs) {
@@ -203,6 +235,23 @@ String calculateRankTapper(uint32_t hits) {
   if (hits >= 45) return "熱血快手 (PRO)";
   if (hits >= 30) return "靈巧節奏 (GOOD)";
   return "佛系慢點 (ROOKIE)";
+}
+
+String calculateRankLightning(unsigned long reactMs) {
+  if (reactMs <= 180) return "超神反應 (CYBORG)";
+  if (reactMs <= 220) return "神經反射之神 (GODLIKE)";
+  if (reactMs <= 280) return "電競選手級 (PRO)";
+  if (reactMs <= 350) return "眼明手快 (EXCELLENT)";
+  if (reactMs <= 450) return "常人水準 (NORMAL)";
+  return "樹懶反應 (SLOTH)";
+}
+
+String calculateRankBomb(uint32_t score, unsigned long survivedMs) {
+  if (score >= 8000) return "鋼鐵心臟 (IMMORTAL)";
+  if (score >= 5000) return "極限拆彈王 (MASTER)";
+  if (score >= 2500) return "膽識過人 (EXCELLENT)";
+  if (score >= 1000) return "安全落袋 (GOOD)";
+  return "見好就收 (ROOKIE)";
 }
 
 // --------------------------- 核心按鍵動作邏輯 ---------------------------
@@ -251,13 +300,12 @@ void handleActionTrigger() {
     }
   }
   // ---------------- 模式 1：十秒狂拍手速王 ----------------
-  else {
+  else if (currentGameMode == MODE_SPEED_TAPPER) {
     if (currentState == STATE_READY) {
       currentState = STATE_RUNNING;
       startTimeMs = now;
       tapperHits = 1;
       setLeds(true);
-      // 起跑蜂鳴提示
       playAsyncTone(1400, 60);
 
       String json = "{\"type\":\"START\",\"mode\":1,\"time\":" + String(startTimeMs) + ",\"h\":1}";
@@ -265,12 +313,9 @@ void handleActionTrigger() {
       Serial.println("[SPEED-TAPPER] 倒數 10 秒狂拍開始！第 1 下！");
     }
     else if (currentState == STATE_RUNNING) {
-      // 狂拍計次！
       tapperHits++;
-      // 注意：狂拍期間完全不呼叫 tone()，避免軟體中斷阻塞，將 100% CPU 留給極速按鍵掃描！
       setLeds(true);
 
-      // 輕量化廣播
       String json = "{\"type\":\"HIT\",\"h\":" + String(tapperHits) + "}";
       broadcastSSE(json);
     }
@@ -283,6 +328,104 @@ void handleActionTrigger() {
         playAsyncTone(800, 60);
         broadcastSSE("{\"type\":\"RESET\",\"mode\":1}");
         Serial.println("[SPEED-TAPPER] 歸零重置 (0)！等待下一次狂拍開始。");
+      }
+    }
+  }
+  // ---------------- 模式 2：閃電神經對決 ----------------
+  else if (currentGameMode == MODE_LIGHTNING) {
+    if (currentState == STATE_READY) {
+      currentState = STATE_RUNNING;
+      signalTriggerTimeMs = now + random(2500, 6000);
+      hasSignaled = false;
+      signalStartTimeMs = 0;
+      setLeds(false);
+      playAsyncTone(600, 50);
+
+      String json = "{\"type\":\"START\",\"mode\":2,\"time\":" + String(now) + "}";
+      broadcastSSE(json);
+      Serial.println("[LIGHTNING] 屏息凝神！隨機信號準備中 (2.5~6.0s)...");
+    }
+    else if (currentState == STATE_RUNNING) {
+      if (!hasSignaled) {
+        // ❌ 違規搶拍偷跑！
+        currentState = STATE_RESULT;
+        cooldownUntilMs = now + CELEBRATE_MS;
+        hasSentWaitReset = false;
+        playAsyncTone(200, 300);
+        setLeds(false);
+
+        String json = "{\"type\":\"STOP\",\"mode\":2,\"fault\":true,\"rank\":\"走火出局 (FAULT)\",\"cooldown\":" + String(CELEBRATE_MS) + "}";
+        broadcastSSE(json);
+        Serial.println("[LIGHTNING] 違規搶拍！信號未響即出手，偷跑出局！");
+      } else {
+        // 🎯 拔槍成功！計算反應毫秒
+        unsigned long reactionMs = now - signalStartTimeMs;
+        currentState = STATE_RESULT;
+        cooldownUntilMs = now + CELEBRATE_MS;
+        hasSentWaitReset = false;
+
+        String rank = calculateRankLightning(reactionMs);
+        if (reactionMs <= 220) playAsyncTone(1760, 200);
+        else playAsyncTone(1000, 150);
+
+        String json = "{\"type\":\"STOP\",\"mode\":2,\"fault\":false,\"time\":" + String(reactionMs) +
+                      ",\"rank\":\"" + rank + "\"" +
+                      ",\"cooldown\":" + String(CELEBRATE_MS) + "}";
+        broadcastSSE(json);
+        Serial.printf("[LIGHTNING] 拔槍命中！反應時間: %lu ms, 評價: %s\n", reactionMs, rank.c_str());
+      }
+    }
+    else if (currentState == STATE_RESULT) {
+      if (now < cooldownUntilMs) {
+        Serial.println("[GAME] 1 秒慶祝鎖定中，防連點忽略！");
+      } else {
+        currentState = STATE_READY;
+        hasSignaled = false;
+        playAsyncTone(800, 60);
+        broadcastSSE("{\"type\":\"RESET\",\"mode\":2}");
+        Serial.println("[LIGHTNING] 歸零重置！等待下一次對決。");
+      }
+    }
+  }
+  // ---------------- 模式 3：心跳炸彈博弈 ----------------
+  else if (currentGameMode == MODE_BOMB) {
+    if (currentState == STATE_READY) {
+      currentState = STATE_RUNNING;
+      startTimeMs = now;
+      bombBoomTimeMs = now + random(5500, 11500); // 隨機 5.5 ~ 11.5 秒引爆
+      playAsyncTone(1200, 80);
+
+      String json = "{\"type\":\"START\",\"mode\":3,\"time\":" + String(startTimeMs) + "}";
+      broadcastSSE(json);
+      Serial.println("[BOMB] 炸彈啟動運轉！分數指數飆升，及時拆彈！");
+    }
+    else if (currentState == STATE_RUNNING) {
+      // 🏆 玩家及時拍擊拆彈，抱走高分！
+      unsigned long survivedMs = now - startTimeMs;
+      float sec = (float)survivedMs / 1000.0;
+      uint32_t score = (uint32_t)(sec * sec * 100);
+      currentState = STATE_RESULT;
+      cooldownUntilMs = now + CELEBRATE_MS;
+      hasSentWaitReset = false;
+
+      String rank = calculateRankBomb(score, survivedMs);
+      playAsyncTone(1760, 200);
+
+      String json = "{\"type\":\"STOP\",\"mode\":3,\"boom\":false,\"survived\":" + String(survivedMs) +
+                    ",\"score\":" + String(score) +
+                    ",\"rank\":\"" + rank + "\"" +
+                    ",\"cooldown\":" + String(CELEBRATE_MS) + "}";
+      broadcastSSE(json);
+      Serial.printf("[BOMB] 拆彈成功！極限生存: %lu ms, 獲得高分: %u, 評價: %s\n", survivedMs, score, rank.c_str());
+    }
+    else if (currentState == STATE_RESULT) {
+      if (now < cooldownUntilMs) {
+        Serial.println("[GAME] 1 秒慶祝鎖定中，防連點忽略！");
+      } else {
+        currentState = STATE_READY;
+        playAsyncTone(800, 60);
+        broadcastSSE("{\"type\":\"RESET\",\"mode\":3}");
+        Serial.println("[BOMB] 歸零重置！等待下一次拆彈博弈。");
       }
     }
   }
@@ -301,12 +444,16 @@ void handleVirtualButton() {
 void handleSetMode() {
   if (server.hasArg("set")) {
     int m = server.arg("set").toInt();
-    currentGameMode = (m == 1) ? MODE_SPEED_TAPPER : MODE_TIME_LORD;
+    if (m >= 0 && m <= 3) {
+      currentGameMode = (GameMode)m;
+    }
     currentState = STATE_READY;
     tapperHits = 0;
+    hasSignaled = false;
     String json = "{\"type\":\"RESET\",\"mode\":" + String(currentGameMode) + "}";
     broadcastSSE(json);
-    Serial.printf("[GAME] 切換模式為: %s\n", (currentGameMode == MODE_TIME_LORD ? "十秒停秒" : "十秒手速"));
+    const char* modeNames[] = {"十秒停秒", "十秒手速", "閃電對決", "心跳炸彈"};
+    Serial.printf("[GAME] 切換模式為: %s\n", modeNames[currentGameMode]);
   }
   server.send(200, "application/json", "{\"mode\":" + String(currentGameMode) + "}");
 }
@@ -441,6 +588,7 @@ void setup() {
   digitalWrite(PIN_BUZZER, LOW);
 
   uint32_t chipId = ESP.getChipId();
+  randomSeed(micros() ^ ESP.getCycleCount());
   char apName[32];
   snprintf(apName, sizeof(apName), "Timer10s_%04X", (uint16_t)(chipId & 0xFFFF));
 
@@ -519,6 +667,33 @@ void loop() {
                     ",\"cooldown\":" + String(CELEBRATE_MS) + "}";
       broadcastSSE(json);
       Serial.printf("[SPEED-TAPPER] 10秒時間到！總點擊: %u 下, CPS: %.1f, 評價: %s\n", tapperHits, cps, rank.c_str());
+    }
+  }
+
+  // 閃電對決模式：隨機信號時間到達，瞬間發射綠光與響亮信號！
+  if (currentGameMode == MODE_LIGHTNING && currentState == STATE_RUNNING) {
+    if (!hasSignaled && now >= signalTriggerTimeMs) {
+      hasSignaled = true;
+      signalStartTimeMs = now;
+      setLeds(true);
+      playAsyncTone(1800, 150);
+      broadcastSSE("{\"type\":\"LIGHTNING_SIGNAL\"}");
+      Serial.println("[LIGHTNING] ⚡ 信號暴閃！BANG！火速拔槍！");
+    }
+  }
+
+  // 心跳炸彈模式：到達隨機爆炸時間，引爆轟鳴！
+  if (currentGameMode == MODE_BOMB && currentState == STATE_RUNNING) {
+    if (now >= bombBoomTimeMs) {
+      currentState = STATE_RESULT;
+      stopTimeMs = now;
+      cooldownUntilMs = now + CELEBRATE_MS;
+      hasSentWaitReset = false;
+      setLeds(false);
+      playAsyncTone(150, 450); // 爆炸低沉重音
+      String json = "{\"type\":\"STOP\",\"mode\":3,\"boom\":true,\"rank\":\"化為灰燼 (EXPLODED)\",\"cooldown\":" + String(CELEBRATE_MS) + "}";
+      broadcastSSE(json);
+      Serial.println("[BOMB] 💥 轟！！！炸彈引爆！太貪心啦！");
     }
   }
 

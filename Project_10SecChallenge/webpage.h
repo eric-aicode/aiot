@@ -9,7 +9,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>十秒挑戰雙競技 - 巨幕旗艦版</title>
+  <title>ArenaPod 四合一單鍵競技場</title>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@700&family=Orbitron:wght@700;900&family=Share+Tech+Mono&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -19,6 +19,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       --gold: #ffb703;
       --red: #ff0055;
       --purple: #a855f7;
+      --orange: #ff7b00;
       --text: #f0f4fc;
       --muted: #64748b;
       --panel-bg: #0b1324;
@@ -46,9 +47,9 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       animation: stopShake 0.35s cubic-bezier(.36,.07,.19,.97) both;
     }
     @keyframes stopShake {
-      15%, 85% { transform: translate3d(-4px, 0, 0); }
-      30%, 70% { transform: translate3d(5px, 0, 0); }
-      45%, 60% { transform: translate3d(-6px, 0, 0); }
+      15%, 85% { transform: translate3d(-5px, 0, 0); }
+      30%, 70% { transform: translate3d(6px, 0, 0); }
+      45%, 60% { transform: translate3d(-7px, 0, 0); }
     }
 
     .celebration-halo {
@@ -59,28 +60,37 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       opacity: 0;
     }
     .halo-perfect {
-      background: radial-gradient(circle, rgba(0,255,135,0.45) 0%, rgba(255,183,3,0.3) 45%, transparent 70%);
+      background: radial-gradient(circle, rgba(0,255,135,0.5) 0%, rgba(255,183,3,0.3) 45%, transparent 70%);
       opacity: 1;
       animation: haloFade 1s ease-out forwards;
     }
     .halo-godlike {
-      background: radial-gradient(circle, rgba(0,242,254,0.45) 0%, rgba(0,255,135,0.2) 50%, transparent 70%);
+      background: radial-gradient(circle, rgba(0,242,254,0.5) 0%, rgba(0,255,135,0.2) 50%, transparent 70%);
       opacity: 1;
       animation: haloFade 1s ease-out forwards;
     }
     .halo-master {
-      background: radial-gradient(circle, rgba(255,183,3,0.35) 0%, transparent 60%);
+      background: radial-gradient(circle, rgba(255,183,3,0.4) 0%, transparent 60%);
       opacity: 1;
       animation: haloFade 1s ease-out forwards;
     }
     .halo-miss {
-      background: radial-gradient(circle, rgba(255,0,85,0.3) 0%, transparent 60%);
+      background: radial-gradient(circle, rgba(255,0,85,0.45) 0%, transparent 60%);
       opacity: 1;
       animation: haloFade 1s ease-out forwards;
+    }
+    .halo-bang {
+      background: rgba(0, 255, 135, 0.45);
+      opacity: 1;
+      animation: haloFlash 0.3s ease-out forwards;
     }
     @keyframes haloFade {
       0% { transform: scale(0.65); opacity: 0.95; }
       100% { transform: scale(1.4); opacity: 0; }
+    }
+    @keyframes haloFlash {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
     }
 
     /* 頂部懸浮工具列 */
@@ -104,7 +114,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       flex-wrap: wrap;
     }
     .pill-btn {
-      background: rgba(15, 23, 42, 0.82);
+      background: rgba(15, 23, 42, 0.85);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.15);
@@ -129,9 +139,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     }
     .pill-btn:active { transform: scale(0.95); }
 
-    /* 模式切換按鈕高亮 */
     .btn-mode {
-      background: linear-gradient(135deg, rgba(168,85,247,0.35) 0%, rgba(0,242,254,0.35) 100%);
+      background: linear-gradient(135deg, rgba(168,85,247,0.4) 0%, rgba(0,242,254,0.4) 100%);
       border-color: var(--cyan);
       color: #fff;
     }
@@ -140,17 +149,12 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       border-color: var(--gold);
       color: var(--gold);
     }
-    .btn-wifi {
-      border-color: rgba(0, 242, 254, 0.4);
-      color: var(--cyan);
-    }
     .btn-wifi.online {
       border-color: var(--green);
       color: var(--green);
       background: rgba(0, 255, 135, 0.15);
     }
 
-    /* 浮動隱藏/顯示控制紐 */
     .btn-collapse {
       position: fixed;
       bottom: 12px;
@@ -183,7 +187,6 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       position: relative;
     }
 
-    /* 目標提示標語 */
     .target-banner {
       font-family: 'Chakra Petch', sans-serif;
       font-size: clamp(0.95rem, 2.3vw, 1.6rem);
@@ -194,6 +197,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       align-items: center;
       gap: 8px;
       transition: opacity 0.3s;
+      text-align: center;
     }
     .target-banner strong {
       color: var(--gold);
@@ -201,7 +205,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       font-size: 1.25em;
     }
 
-    /* 👑 超極限巨幕數字 (全螢幕最大化，等寬不晃動，加大字距) */
+    /* 👑 超極限巨幕數字 (全螢幕最大化，加大字距防黏字) */
     .giant-digits {
       font-size: min(25vw, 32vh);
       font-weight: 900;
@@ -235,16 +239,16 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       margin: 0 0.04em;
     }
 
-    /* 手速模式下的單一超巨型擊打次數 (字體極限狂放大) */
-    .tapper-digits {
-      font-size: min(40vw, 44vh);
+    /* 單一超巨大字體 (手速次數 / 閃電反應時間 / 炸彈分數) */
+    .single-huge-digits {
+      font-size: min(34vw, 38vh);
       font-weight: 900;
       line-height: 0.95;
       color: var(--cyan);
       text-shadow: 0 0 55px rgba(0, 242, 254, 0.75), 0 0 110px rgba(0, 242, 254, 0.35);
       cursor: pointer;
       font-family: 'Orbitron', 'Impact', sans-serif;
-      letter-spacing: -2px;
+      text-align: center;
     }
 
     /* 4 款零震動字體樣式 */
@@ -253,22 +257,11 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     .font-7seg   { font-family: 'Share Tech Mono', 'Courier New', monospace; letter-spacing: 0.05em; }
     .font-modern { font-family: 'Roboto Mono', 'SF Pro Mono', 'Consolas', monospace; letter-spacing: 0.03em; }
 
-    .giant-digits.idle, .tapper-digits.idle {
-      color: #64748b;
-      text-shadow: none;
-    }
-    .giant-digits.running {
-      color: var(--cyan);
-      text-shadow: 0 0 50px rgba(0, 242, 254, 0.7), 0 0 100px rgba(0, 242, 254, 0.3);
-    }
-    .tapper-digits.running {
-      color: var(--green);
-      text-shadow: 0 0 55px rgba(0, 255, 135, 0.8), 0 0 120px rgba(0, 255, 135, 0.4);
-    }
-    .giant-digits.perfect, .tapper-digits.perfect {
-      color: var(--green);
-      text-shadow: 0 0 65px rgba(0, 255, 135, 0.95), 0 0 130px rgba(0, 255, 135, 0.5);
-    }
+    .idle { color: #64748b !important; text-shadow: none !important; }
+    .running { color: var(--cyan); text-shadow: 0 0 50px rgba(0, 242, 254, 0.7); }
+    .perfect { color: var(--green) !important; text-shadow: 0 0 65px rgba(0, 255, 135, 0.95) !important; }
+    .warning { color: var(--gold) !important; text-shadow: 0 0 50px rgba(255, 183, 3, 0.8) !important; }
+    .danger  { color: var(--red) !important; text-shadow: 0 0 60px rgba(255, 0, 85, 0.9) !important; }
 
     /* 懸浮結算成績卡 */
     .result-overlay {
@@ -303,6 +296,12 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       border-color: var(--green);
       color: var(--green);
       box-shadow: 0 0 25px rgba(0, 255, 135, 0.5);
+    }
+    .rank-tag.danger {
+      background: rgba(255, 0, 85, 0.25);
+      border-color: var(--red);
+      color: var(--red);
+      box-shadow: 0 0 25px rgba(255, 0, 85, 0.5);
     }
 
     /* 底部狀態提示浮條 */
@@ -428,8 +427,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
   <!-- 頂部懸浮工具列 -->
   <header class="floating-toolbar" id="toolbar">
     <div class="toolbar-left">
-      <button class="pill-btn btn-mode" id="btnMode" onclick="toggleGameMode()">
-        🎮 模式: ⏱️ 十秒節拍挑戰
+      <button class="pill-btn btn-mode" id="btnMode" onclick="cycleGameMode()">
+        🎮 模式: ⏱️ 十秒節拍停秒
       </button>
       <button class="pill-btn btn-fs" id="btnFullscreen" onclick="toggleFullscreen()">
         ⛶ 全螢幕
@@ -453,18 +452,17 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
   <!-- 中央巨幕舞台 -->
   <main class="giant-arena" id="arenaMain" onclick="handleTapScreen()">
-    <!-- 標語 (依模式動態變化) -->
     <div class="target-banner" id="targetBanner">
       🎯 目標時間 <strong>10.000 秒</strong>
     </div>
 
-    <!-- 視圖 1：十秒停秒挑戰機 (Time Lord) -->
+    <!-- 視圖 0：十秒停秒挑戰 (Time Lord) -->
     <div class="giant-digits font-sci-fi idle" id="boxTimeLord">
       <span class="d-slot" id="d0">0</span><span class="d-slot" id="d1">0</span><span class="d-dot">.</span><span class="d-slot" id="d2">0</span><span class="d-slot" id="d3">0</span><span class="d-slot" id="d4">0</span>
     </div>
 
-    <!-- 視圖 2：十秒手速狂拍挑戰 (Speed Tapper) -->
-    <div class="tapper-digits font-sci-fi idle" id="boxSpeedTapper" style="display:none;">
+    <!-- 視圖 1 / 2 / 3：單一超巨大數字 (手速 / 閃電 / 炸彈) -->
+    <div class="single-huge-digits font-sci-fi idle" id="boxSingleDigits" style="display:none;">
       0
     </div>
 
@@ -556,9 +554,13 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     const STATE_RUNNING = 1;
     const STATE_RESULT = 2;
 
-    const MODE_TIME_LORD = 0;
-    const MODE_SPEED_TAPPER = 1;
-    let currentGameMode = MODE_TIME_LORD;
+    const MODES = [
+      { id: 0, name: '⏱️ 十秒節拍停秒', hint: '🎯 目標時間 <strong>10.000 秒</strong>', lbKey: 'timer10s_lb', lbTitle: '🏆 今日停秒榜 (Top 5)' },
+      { id: 1, name: '⚡ 十秒手速狂拍', hint: '⚡ 倒數 <strong>10.0 秒</strong> 瘋狂狂拍！', lbKey: 'tapper10s_lb', lbTitle: '⚡ 今日手速榜 (Top 5)' },
+      { id: 2, name: '🤠 閃電神經對決', hint: '⚠️ 屏息等待信號... <strong>見綠光暴閃瞬間拔槍！</strong>', lbKey: 'lightning10s_lb', lbTitle: '🤠 閃電牛仔榜 (Top 5)' },
+      { id: 3, name: '💣 心跳炸彈博弈', hint: '💣 炸彈已啟動！<strong>在引爆前及時拆彈！</strong>', lbKey: 'bomb10s_lb', lbTitle: '💣 拆彈勇者榜 (Top 5)' }
+    ];
+    let currentGameMode = 0;
 
     let currentState = STATE_READY;
     let localStartTime = 0;
@@ -578,7 +580,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     const btnMode = document.getElementById('btnMode');
     const targetBanner = document.getElementById('targetBanner');
     const boxTimeLord = document.getElementById('boxTimeLord');
-    const boxSpeedTapper = document.getElementById('boxSpeedTapper');
+    const boxSingleDigits = document.getElementById('boxSingleDigits');
 
     const d0 = document.getElementById('d0');
     const d1 = document.getElementById('d1');
@@ -610,10 +612,10 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     function applyFont() {
       FONTS.forEach(f => {
         boxTimeLord.classList.remove(f.id);
-        boxSpeedTapper.classList.remove(f.id);
+        boxSingleDigits.classList.remove(f.id);
       });
       boxTimeLord.classList.add(FONTS[fontIndex].id);
-      boxSpeedTapper.classList.add(FONTS[fontIndex].id);
+      boxSingleDigits.classList.add(FONTS[fontIndex].id);
       btnFont.innerText = '🔤 字體: ' + FONTS[fontIndex].name;
       localStorage.setItem('timer10s_font', fontIndex.toString());
     }
@@ -622,12 +624,12 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       applyFont();
     }
 
-    // 切換遊戲模式
-    function toggleGameMode() {
-      const newMode = (currentGameMode === MODE_TIME_LORD) ? MODE_SPEED_TAPPER : MODE_TIME_LORD;
-      fetch('/api/mode?set=' + newMode, { method: 'POST' })
-        .then(() => switchUIMode(newMode))
-        .catch(() => switchUIMode(newMode));
+    // 輪流切換 4 種遊戲模式
+    function cycleGameMode() {
+      const nextMode = (currentGameMode + 1) % MODES.length;
+      fetch('/api/mode?set=' + nextMode, { method: 'POST' })
+        .then(() => switchUIMode(nextMode))
+        .catch(() => switchUIMode(nextMode));
     }
 
     function switchUIMode(mode) {
@@ -635,20 +637,26 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       currentState = STATE_READY;
       if (animFrameId) cancelAnimationFrame(animFrameId);
 
-      if (mode === MODE_TIME_LORD) {
-        btnMode.innerHTML = '🎮 模式: ⏱️ 十秒節拍挑戰';
-        targetBanner.innerHTML = '🎯 目標時間 <strong>10.000 秒</strong>';
+      const m = MODES[mode];
+      btnMode.innerHTML = '🎮 模式: ' + m.name;
+      targetBanner.innerHTML = m.hint;
+      drawerTitle.innerText = m.lbTitle;
+
+      if (mode === 0) {
+        // 模式 0：十秒停秒 (Time Lord)
         boxTimeLord.style.display = 'inline-flex';
-        boxSpeedTapper.style.display = 'none';
+        boxSingleDigits.style.display = 'none';
         updateDigitSlots(0);
         boxTimeLord.className = 'giant-digits ' + FONTS[fontIndex].id + ' idle';
       } else {
-        btnMode.innerHTML = '🎮 模式: ⚡ 十秒手速挑戰';
-        targetBanner.innerHTML = '⚡ 倒數 <strong>10.0 秒</strong> 瘋狂狂拍！';
+        // 模式 1 / 2 / 3：單一超巨大字體
         boxTimeLord.style.display = 'none';
-        boxSpeedTapper.style.display = 'block';
-        boxSpeedTapper.innerText = '0';
-        boxSpeedTapper.className = 'tapper-digits ' + FONTS[fontIndex].id + ' idle';
+        boxSingleDigits.style.display = 'block';
+        boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' idle';
+
+        if (mode === 1) boxSingleDigits.innerText = '0';
+        else if (mode === 2) boxSingleDigits.innerText = '--.---';
+        else if (mode === 3) boxSingleDigits.innerText = '0 分';
       }
 
       deltaDisplay.innerText = '--';
@@ -657,7 +665,6 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       rankTag.className = 'rank-tag';
       bottomHint.className = 'bottom-hint';
       bottomHint.innerHTML = '<span>🔘 拍擊實體大按鈕開始！</span>';
-      drawerTitle.innerText = mode === MODE_TIME_LORD ? '🏆 今日神手榜 (Top 5)' : '⚡ 今日手速榜 (Top 5)';
       playTone(700, 'sine', 0.08, 0.25);
     }
 
@@ -674,7 +681,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       d4.innerText = mStr[2];
     }
 
-    // Web Audio 音效產生器 (純淨無讀秒音，保留按鍵短音與勝利 fanfare)
+    // Web Audio
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playTone(freq, type = 'sine', duration = 0.08, vol = 0.3) {
       if (!soundEnabled || audioCtx.state === 'suspended') return;
@@ -699,6 +706,12 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       });
     }
 
+    function playExplosion() {
+      if (!soundEnabled) return;
+      playTone(150, 'sawtooth', 0.5, 0.6);
+      setTimeout(() => playTone(80, 'square', 0.6, 0.7), 80);
+    }
+
     // 1 秒慶祝粒子
     let particles = [];
     let particleAnimId = null;
@@ -709,15 +722,17 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         ? ['#ffb703', '#00ff87', '#00f2fe', '#ffffff', '#ffd166']
         : tier === 'godlike' 
         ? ['#00ff87', '#00f2fe', '#ffffff']
+        : tier === 'boom'
+        ? ['#ff0055', '#ff7b00', '#ffd166', '#ffffff']
         : ['#ffb703', '#ffd166'];
 
-      const count = tier === 'perfect' ? 80 : tier === 'godlike' ? 45 : 20;
+      const count = tier === 'perfect' ? 80 : (tier === 'boom' ? 100 : 45);
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
 
       for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 12 + 4;
+        const speed = Math.random() * (tier === 'boom' ? 16 : 12) + 4;
         particles.push({
           x: centerX,
           y: centerY,
@@ -805,19 +820,34 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       function frame() {
         if (currentState === STATE_RUNNING) {
           const elapsed = performance.now() - localStartTime;
-          if (currentGameMode === MODE_TIME_LORD) {
+
+          if (currentGameMode === 0) {
+            // 模式 0：十秒停秒
             updateDigitSlots(elapsed);
-          } else {
-            // 手速模式：倒數計時提示
+          } else if (currentGameMode === 1) {
+            // 模式 1：手速倒數
             const remainMs = Math.max(0, 10000 - elapsed);
-            const remainSec = (remainMs / 1000).toFixed(1);
-            targetBanner.innerHTML = `⚡ 剩餘時間 <strong>${remainSec}s</strong> 瘋狂狂拍！`;
+            targetBanner.innerHTML = `⚡ 剩餘時間 <strong>${(remainMs/1000).toFixed(1)}s</strong> 瘋狂狂拍！`;
+          } else if (currentGameMode === 2) {
+            // 模式 2：閃電對決 (等待信號時不動，信號響起時急速狂跳)
+            if (boxSingleDigits.classList.contains('signaled')) {
+              const reactTime = (performance.now() - signalStartTime) / 1000;
+              boxSingleDigits.innerText = reactTime.toFixed(3) + 's';
+            }
+          } else if (currentGameMode === 3) {
+            // 模式 3：炸彈博弈 (分數隨時間指數級暴漲)
+            const sec = elapsed / 1000;
+            const currentScore = Math.floor(sec * sec * 100);
+            boxSingleDigits.innerText = currentScore.toLocaleString() + ' 分';
+            targetBanner.innerHTML = `💣 炸彈已運轉 <strong>${sec.toFixed(2)}s</strong>！及時拍擊落袋！`;
           }
           animFrameId = requestAnimationFrame(frame);
         }
       }
       animFrameId = requestAnimationFrame(frame);
     }
+
+    let signalStartTime = 0;
 
     // 狀態機處理：由後端事件驅動
     function applyState(data) {
@@ -831,16 +861,30 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         currentState = STATE_RUNNING;
         localStartTime = performance.now();
 
-        if (currentGameMode === MODE_TIME_LORD) {
+        if (currentGameMode === 0) {
           boxTimeLord.className = 'giant-digits ' + FONTS[fontIndex].id + ' running';
           bottomHint.className = 'bottom-hint';
           bottomHint.innerHTML = '<span>⚡ 計時狂飆中！第 2 下拍擊定格！</span>';
-        } else {
-          currentHits = data.hits || 1;
-          boxSpeedTapper.innerText = currentHits;
-          boxSpeedTapper.className = 'tapper-digits ' + FONTS[fontIndex].id + ' running';
+        } else if (currentGameMode === 1) {
+          currentHits = data.h || 1;
+          boxSingleDigits.innerText = currentHits;
+          boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' running';
           bottomHint.className = 'bottom-hint';
           bottomHint.innerHTML = '<span>⚡ 倒數 10 秒！火速狂拍按鍵！！！</span>';
+        } else if (currentGameMode === 2) {
+          // 閃電對決進入屏息等待
+          boxSingleDigits.innerText = 'WAIT...';
+          boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' warning';
+          targetBanner.innerHTML = '⚠️ 屏息凝神... <strong>搶拍偷跑直接出局！</strong>';
+          bottomHint.className = 'bottom-hint locked';
+          bottomHint.innerHTML = '<span>⚠️ 等待綠光信號，千萬別搶拍！</span>';
+        } else if (currentGameMode === 3) {
+          // 炸彈啟動
+          boxSingleDigits.innerText = '0 分';
+          boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' running';
+          targetBanner.innerHTML = '💣 炸彈啟動！<strong>在引爆前及時拆彈！</strong>';
+          bottomHint.className = 'bottom-hint';
+          bottomHint.innerHTML = '<span>💣 再次拍擊按鈕立即拆彈落袋！</span>';
         }
 
         deltaDisplay.innerText = '--';
@@ -850,21 +894,30 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         playTone(950, 'sine', 0.1, 0.4);
         runLocalClock();
       }
+      else if (data.type === 'LIGHTNING_SIGNAL') {
+        // 模式 2 綠光信號暴閃！BANG!
+        signalStartTime = performance.now();
+        boxSingleDigits.classList.add('signaled');
+        boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' perfect';
+        targetBanner.innerHTML = '⚡⚡ <strong>拔槍！BANG！火速拍擊！</strong> ⚡⚡';
+        haloLayer.className = 'celebration-halo halo-bang';
+        playTone(1800, 'square', 0.15, 0.6);
+      }
       else if (data.type === 'HIT') {
-        // 手速模式即時點擊加算
         currentHits = (data.h !== undefined) ? data.h : data.hits;
-        boxSpeedTapper.innerText = currentHits;
+        boxSingleDigits.innerText = currentHits;
         playTone(1000 + Math.min(currentHits * 15, 800), 'sine', 0.03, 0.2);
       }
       else if (data.type === 'STOP') {
         currentState = STATE_RESULT;
         if (animFrameId) cancelAnimationFrame(animFrameId);
+        boxSingleDigits.classList.remove('signaled');
 
         haloLayer.className = 'celebration-halo';
         void haloLayer.offsetWidth;
 
-        if (currentGameMode === MODE_TIME_LORD) {
-          // 十秒停秒結算
+        if (currentGameMode === 0) {
+          // 模式 0 停秒結算
           const elapsed = data.elapsed;
           const delta = data.delta;
           const rank = data.rank;
@@ -881,60 +934,33 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
             setTimeout(() => document.body.classList.remove('screen-shake'), 350);
             triggerCelebrationFX('perfect');
             playFanfare();
-            bottomHint.className = 'bottom-hint locked';
-            bottomHint.innerHTML = '<span>👑 神之領域！全場最高榮耀！(1s)</span>';
-          } else if (absDelta <= 50) {
-            const deltaSec = (absDelta / 1000).toFixed(3);
-            const sign = delta < 0 ? '-' : '+';
-            deltaDisplay.innerText = `${sign}${deltaSec}s (${delta < 0 ? '快了' : '慢了'})`;
-            deltaDisplay.className = 'delta-display delta-zero';
-            boxTimeLord.className = 'giant-digits ' + FONTS[fontIndex].id;
-            rankTag.className = 'rank-tag';
-            haloLayer.classList.add('halo-godlike');
-            triggerCelebrationFX('godlike');
-            playTone(587, 'triangle', 0.25, 0.4);
-            bottomHint.className = 'bottom-hint locked';
-            bottomHint.innerHTML = '<span>🥇 人體節拍器！極限準度！(1s)</span>';
-          } else if (absDelta <= 150) {
-            const deltaSec = (absDelta / 1000).toFixed(3);
-            const sign = delta < 0 ? '-' : '+';
-            deltaDisplay.innerText = `${sign}${deltaSec}s (${delta < 0 ? '快了' : '慢了'})`;
-            deltaDisplay.className = delta < 0 ? 'delta-display delta-fast' : 'delta-display delta-slow';
-            boxTimeLord.className = 'giant-digits ' + FONTS[fontIndex].id;
-            rankTag.className = 'rank-tag';
-            haloLayer.classList.add('halo-master');
-            triggerCelebrationFX('master');
-            playTone(440, 'triangle', 0.2, 0.35);
-            bottomHint.className = 'bottom-hint locked';
-            bottomHint.innerHTML = '<span>🥈 時間管理大師！手感絕佳！(1s)</span>';
           } else {
             const deltaSec = (absDelta / 1000).toFixed(3);
             const sign = delta < 0 ? '-' : '+';
             deltaDisplay.innerText = `${sign}${deltaSec}s (${delta < 0 ? '快了' : '慢了'})`;
-            deltaDisplay.className = delta < 0 ? 'delta-display delta-fast' : 'delta-display delta-slow';
+            deltaDisplay.className = absDelta <= 50 ? 'delta-display delta-zero' : (delta < 0 ? 'delta-display delta-fast' : 'delta-display delta-slow');
             boxTimeLord.className = 'giant-digits ' + FONTS[fontIndex].id;
             rankTag.className = 'rank-tag';
-            if (absDelta > 500) haloLayer.classList.add('halo-miss');
-            playTone(300, 'sawtooth', 0.18, 0.35);
-            bottomHint.className = 'bottom-hint locked';
-            bottomHint.innerHTML = '<span>🔒 定格結算防連點中... (1s)</span>';
+            haloLayer.classList.add(absDelta <= 50 ? 'halo-godlike' : 'halo-master');
+            triggerCelebrationFX(absDelta <= 50 ? 'godlike' : 'master');
+            playTone(550, 'triangle', 0.2, 0.35);
           }
           rankTag.innerText = rank;
-          addRecord('timelord', elapsed, delta, rank);
-        } else {
-          // 手速挑戰結算
+          addRecord(0, elapsed, delta, rank);
+        }
+        else if (currentGameMode === 1) {
+          // 模式 1 手速結算
           const hits = data.hits;
           const cps = (data.cps || (hits / 10.0)).toFixed(1);
           const rank = data.rank;
-          boxSpeedTapper.innerText = hits;
-          targetBanner.innerHTML = '⚡ 時間到！<strong>挑戰完成</strong>';
-
+          boxSingleDigits.innerText = hits;
+          targetBanner.innerHTML = '⚡ 時間到！<strong>手速挑戰完成</strong>';
           deltaDisplay.innerText = `${hits} 下 (平均 ${cps} 次/秒)`;
           deltaDisplay.className = 'delta-display delta-zero';
           rankTag.innerText = rank;
 
           if (hits >= 75) {
-            boxSpeedTapper.className = 'tapper-digits ' + FONTS[fontIndex].id + ' perfect';
+            boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' perfect';
             rankTag.className = 'rank-tag perfect';
             haloLayer.classList.add('halo-perfect');
             document.body.classList.add('screen-shake');
@@ -942,16 +968,86 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
             triggerCelebrationFX('perfect');
             playFanfare();
           } else {
-            boxSpeedTapper.className = 'tapper-digits ' + FONTS[fontIndex].id;
+            boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id;
             haloLayer.classList.add('halo-godlike');
             triggerCelebrationFX('godlike');
             playTone(660, 'triangle', 0.25, 0.4);
           }
-
-          bottomHint.className = 'bottom-hint locked';
-          bottomHint.innerHTML = '<span>⚡ 結算中！(1s)</span>';
-          addRecord('tapper', hits, cps, rank);
+          addRecord(1, hits, cps, rank);
         }
+        else if (currentGameMode === 2) {
+          // 模式 2 閃電對決結算
+          if (data.fault) {
+            boxSingleDigits.innerText = 'FOUL!';
+            boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' danger';
+            targetBanner.innerHTML = '❌ <strong>搶拍違規！信號未響即出手！</strong>';
+            deltaDisplay.innerText = '偷跑出局 (0 分)';
+            deltaDisplay.className = 'delta-display delta-slow';
+            rankTag.innerText = '走火出局 (FAULT)';
+            rankTag.className = 'rank-tag danger';
+            haloLayer.classList.add('halo-miss');
+            playTone(200, 'sawtooth', 0.4, 0.5);
+          } else {
+            const reactionMs = data.time;
+            const reactSec = (reactionMs / 1000).toFixed(3);
+            const rank = data.rank;
+            boxSingleDigits.innerText = reactSec + 's';
+            targetBanner.innerHTML = '🤠 <strong>拔槍成功！神經極限！</strong>';
+            deltaDisplay.innerText = `反應時間: ${reactionMs} 毫秒`;
+            deltaDisplay.className = 'delta-display delta-zero';
+            rankTag.innerText = rank;
+
+            if (reactionMs <= 220) {
+              boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' perfect';
+              rankTag.className = 'rank-tag perfect';
+              haloLayer.classList.add('halo-perfect');
+              document.body.classList.add('screen-shake');
+              setTimeout(() => document.body.classList.remove('screen-shake'), 350);
+              triggerCelebrationFX('perfect');
+              playFanfare();
+            } else {
+              boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id;
+              haloLayer.classList.add('halo-godlike');
+              triggerCelebrationFX('godlike');
+              playTone(700, 'triangle', 0.2, 0.4);
+            }
+            addRecord(2, reactionMs, reactSec, rank);
+          }
+        }
+        else if (currentGameMode === 3) {
+          // 模式 3 炸彈博弈結算
+          if (data.boom) {
+            boxSingleDigits.innerText = 'BOOM!';
+            boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' danger';
+            targetBanner.innerHTML = '💥 <strong>轟！！！炸彈引爆！太貪心啦！</strong>';
+            deltaDisplay.innerText = '引爆炸裂 (得分 0 分)';
+            deltaDisplay.className = 'delta-display delta-slow';
+            rankTag.innerText = '化為灰燼 (EXPLODED)';
+            rankTag.className = 'rank-tag danger';
+            haloLayer.classList.add('halo-miss');
+            document.body.classList.add('screen-shake');
+            setTimeout(() => document.body.classList.remove('screen-shake'), 450);
+            triggerCelebrationFX('boom');
+            playExplosion();
+          } else {
+            const score = data.score;
+            const sec = (data.survived / 1000).toFixed(2);
+            boxSingleDigits.innerText = score.toLocaleString() + ' 分';
+            boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' perfect';
+            targetBanner.innerHTML = `🏆 <strong>拆彈成功！極限生存 ${sec} 秒！</strong>`;
+            deltaDisplay.innerText = `抱走高分: ${score.toLocaleString()} 分`;
+            deltaDisplay.className = 'delta-display delta-zero';
+            rankTag.innerText = '拆彈大師 (HERO)';
+            rankTag.className = 'rank-tag perfect';
+            haloLayer.classList.add('halo-perfect');
+            triggerCelebrationFX('perfect');
+            playFanfare();
+            addRecord(3, score, sec, '拆彈大師');
+          }
+        }
+
+        bottomHint.className = 'bottom-hint locked';
+        bottomHint.innerHTML = '<span>⚡ 定格結算中... (1s)</span>';
       }
       else if (data.type === 'WAIT_RESET') {
         bottomHint.className = 'bottom-hint wait-reset';
@@ -960,28 +1056,10 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       else if (data.type === 'RESET') {
         currentState = STATE_READY;
         if (animFrameId) cancelAnimationFrame(animFrameId);
-
-        if (currentGameMode === MODE_TIME_LORD) {
-          updateDigitSlots(0);
-          boxTimeLord.className = 'giant-digits ' + FONTS[fontIndex].id + ' idle';
-          targetBanner.innerHTML = '🎯 目標時間 <strong>10.000 秒</strong>';
-        } else {
-          boxSpeedTapper.innerText = '0';
-          boxSpeedTapper.className = 'tapper-digits ' + FONTS[fontIndex].id + ' idle';
-          targetBanner.innerHTML = '⚡ 倒數 <strong>10.0 秒</strong> 瘋狂狂拍！';
-        }
-
-        deltaDisplay.innerText = '--';
-        deltaDisplay.className = 'delta-display';
-        rankTag.innerText = '準備就緒';
-        rankTag.className = 'rank-tag';
-        bottomHint.className = 'bottom-hint';
-        bottomHint.innerHTML = '<span>🔘 拍擊按鈕開始！</span>';
-        playTone(800, 'sine', 0.08, 0.25);
+        switchUIMode(currentGameMode);
       }
     }
 
-    // 抽屜控制
     function openRecordsDrawer() {
       closeAllDrawers();
       renderDrawer();
@@ -997,7 +1075,6 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       wifiDrawer.classList.remove('open');
     }
 
-    // Wi-Fi 狀態與連線邏輯
     function checkWifiStatus() {
       fetch('/api/wifi/status')
         .then(r => r.json())
@@ -1085,36 +1162,34 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         .catch(err => alert('啟動失敗: ' + err));
     }
 
-    // 排行榜機制 (區分兩個模式)
+    // 4 個模式獨立排行榜
     function addRecord(mode, p1, p2, rank) {
-      const key = mode === 'timelord' ? 'timer10s_lb' : 'tapper10s_lb';
+      const key = MODES[mode].lbKey;
       let lb = JSON.parse(localStorage.getItem(key) || '[]');
-      if (mode === 'timelord') {
-        lb.push({
-          time: (p1 / 1000).toFixed(3),
-          delta: (p2 / 1000).toFixed(3),
-          absDelta: Math.abs(p2),
-          rank: rank,
-          timeStr: new Date().toLocaleTimeString('zh-TW', { hour12: false })
-        });
+      const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+
+      if (mode === 0) { // 停秒
+        lb.push({ time: (p1/1000).toFixed(3), delta: (p2/1000).toFixed(3), absDelta: Math.abs(p2), rank: rank, timeStr: nowStr });
         lb.sort((a,b) => a.absDelta - b.absDelta);
-      } else {
-        lb.push({
-          hits: p1,
-          cps: p2,
-          rank: rank,
-          timeStr: new Date().toLocaleTimeString('zh-TW', { hour12: false })
-        });
-        lb.sort((a,b) => b.hits - a.hits); // 按次數高到低
+      } else if (mode === 1) { // 手速
+        lb.push({ hits: p1, cps: p2, rank: rank, timeStr: nowStr });
+        lb.sort((a,b) => b.hits - a.hits);
+      } else if (mode === 2) { // 閃電對決 (毫秒越短越好)
+        lb.push({ reactMs: p1, reactSec: p2, rank: rank, timeStr: nowStr });
+        lb.sort((a,b) => a.reactMs - b.reactMs);
+      } else if (mode === 3) { // 炸彈 (得分越高越好)
+        lb.push({ score: p1, sec: p2, rank: rank, timeStr: nowStr });
+        lb.sort((a,b) => b.score - a.score);
       }
+
       if (lb.length > 5) lb = lb.slice(0, 5);
       localStorage.setItem(key, JSON.stringify(lb));
     }
 
     function renderDrawer() {
-      const key = currentGameMode === MODE_TIME_LORD ? 'timer10s_lb' : 'tapper10s_lb';
-      let lb = JSON.parse(localStorage.getItem(key) || '[]');
-      drawerTitle.innerText = currentGameMode === MODE_TIME_LORD ? '🏆 今日停秒榜 (Top 5)' : '⚡ 今日手速榜 (Top 5)';
+      const m = MODES[currentGameMode];
+      let lb = JSON.parse(localStorage.getItem(m.lbKey) || '[]');
+      drawerTitle.innerText = m.lbTitle;
 
       if (lb.length === 0) {
         drawerRecords.innerHTML = '<div style="text-align:center; color:var(--muted); padding:20px;">尚無紀錄，快拍下按鈕挑戰！</div>';
@@ -1123,7 +1198,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       let html = '';
       lb.forEach((r, idx) => {
         const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx+1}`;
-        if (currentGameMode === MODE_TIME_LORD) {
+        if (currentGameMode === 0) {
           const color = r.delta == 0 ? 'var(--green)' : r.delta < 0 ? 'var(--cyan)' : 'var(--red)';
           const sign = r.delta > 0 ? '+' : '';
           html += `
@@ -1132,24 +1207,38 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
               <span style="font-family:'Orbitron'; font-weight:700;">${r.time}s</span>
               <span style="font-family:'Orbitron'; color:${color}; font-size:0.85rem;">${sign}${r.delta}s</span>
               <span style="font-size:0.75rem; color:var(--muted);">${r.timeStr}</span>
-            </div>
-          `;
-        } else {
+            </div>`;
+        } else if (currentGameMode === 1) {
           html += `
             <div class="record-item">
               <span style="font-weight:900; color:var(--gold); width:28px;">${medal}</span>
               <span style="font-family:'Orbitron'; font-weight:900; color:var(--green);">${r.hits} 下</span>
               <span style="font-family:'Orbitron'; font-size:0.85rem; color:var(--cyan);">${r.cps} 次/秒</span>
               <span style="font-size:0.75rem; color:var(--muted);">${r.timeStr}</span>
-            </div>
-          `;
+            </div>`;
+        } else if (currentGameMode === 2) {
+          html += `
+            <div class="record-item">
+              <span style="font-weight:900; color:var(--gold); width:28px;">${medal}</span>
+              <span style="font-family:'Orbitron'; font-weight:900; color:var(--cyan);">${r.reactSec} 秒</span>
+              <span style="font-family:'Orbitron'; font-size:0.85rem; color:var(--gold);">${r.reactMs}ms (${r.rank})</span>
+              <span style="font-size:0.75rem; color:var(--muted);">${r.timeStr}</span>
+            </div>`;
+        } else if (currentGameMode === 3) {
+          html += `
+            <div class="record-item">
+              <span style="font-weight:900; color:var(--gold); width:28px;">${medal}</span>
+              <span style="font-family:'Orbitron'; font-weight:900; color:var(--gold);">${r.score.toLocaleString()} 分</span>
+              <span style="font-family:'Orbitron'; font-size:0.85rem; color:var(--green);">${r.sec}s 存活</span>
+              <span style="font-size:0.75rem; color:var(--muted);">${r.timeStr}</span>
+            </div>`;
         }
       });
       drawerRecords.innerHTML = html;
     }
 
     function clearLeaderboard() {
-      const key = currentGameMode === MODE_TIME_LORD ? 'timer10s_lb' : 'tapper10s_lb';
+      const key = MODES[currentGameMode].lbKey;
       if (confirm('確定清空當前模式英雄榜嗎？')) {
         localStorage.removeItem(key);
         renderDrawer();
