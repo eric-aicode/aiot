@@ -197,9 +197,9 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       font-size: 1.2em;
     }
 
-    /* 👑 超極限巨幕數字 (等寬固定插槽，跑動零晃動！) */
+    /* 👑 超極限巨幕數字 (等寬固定插槽，跑動零晃動，加大字距不連字) */
     .giant-digits {
-      font-size: min(26vw, 32vh);
+      font-size: min(25vw, 30vh);
       font-weight: 900;
       line-height: 1;
       color: var(--gold);
@@ -208,6 +208,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       display: inline-flex;
       justify-content: center;
       align-items: center;
+      gap: 0.04em;
       font-variant-numeric: tabular-nums;
       font-feature-settings: "tnum";
       white-space: nowrap;
@@ -217,22 +218,24 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
     .d-slot {
       display: inline-block;
-      width: 0.62em;
+      width: 0.70em;
       text-align: center;
       flex-shrink: 0;
+      margin: 0 0.02em;
     }
     .d-dot {
       display: inline-block;
-      width: 0.26em;
+      width: 0.32em;
       text-align: center;
       flex-shrink: 0;
+      margin: 0 0.04em;
     }
 
-    /* 4 款零震動字體樣式 */
-    .font-sci-fi { font-family: 'Orbitron', 'Chakra Petch', 'Trebuchet MS', sans-serif; }
-    .font-impact { font-family: 'Impact', 'Arial Black', sans-serif; }
-    .font-7seg   { font-family: 'Share Tech Mono', 'Courier New', monospace; }
-    .font-modern { font-family: 'Roboto Mono', 'SF Pro Mono', 'Consolas', monospace; }
+    /* 4 款零震動字體樣式 (加強字元呼吸間距) */
+    .font-sci-fi { font-family: 'Orbitron', 'Chakra Petch', 'Trebuchet MS', sans-serif; letter-spacing: 0.02em; }
+    .font-impact { font-family: 'Impact', 'Arial Black', sans-serif; letter-spacing: 0.04em; }
+    .font-7seg   { font-family: 'Share Tech Mono', 'Courier New', monospace; letter-spacing: 0.05em; }
+    .font-modern { font-family: 'Roboto Mono', 'SF Pro Mono', 'Consolas', monospace; letter-spacing: 0.03em; }
 
     .giant-digits.idle {
       color: #64748b;
