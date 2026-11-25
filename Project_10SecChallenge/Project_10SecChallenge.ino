@@ -1,22 +1,22 @@
 /*
   ================================================================================
-  ⏱️ Project: 10-Second Challenge (十秒挑戰機 · 毫秒極限對決)
+  ⏱️ Project: 10-Second Challenge (十秒挑戰雙競技 · 巨幕旗艦版)
   
-  特色與規格：
+  雙遊戲模式切換：
+  - 模式 0【十秒停秒挑戰 (Time Lord)】：
+      * 歸零待機 (00.000) -> 拍第 1 下狂飆 -> 拍第 2 下定格看誰命中 10.000 秒 -> 拍第 3 下歸零。
+  - 模式 1【十秒手速狂拍 (Speed Tapper)】：
+      * 倒數 10.0 秒內瘋狂狂拍按鈕，超巨型數字計算總次數 (Hits) 與每秒手速 (CPS)！
+      * 倒數 10 秒結束自動定格結算，拍一下歸零，再拍才啟動！
+  
+  核心規格：
+  - EEPROM 持久化 Wi-Fi 記憶：即使重新有線燒錄或 OTA 升級，依然永久記住上次連過的 Wi-Fi 與密碼，開機秒連！
   - 雙模 Wi-Fi 架構 (AP + STA)：
-      * 獨立熱點保底：永遠開啟 Timer10s_XXXX (192.168.4.1)，任何環境隨開隨連。
-      * 外部 Wi-Fi 連線：可設定連接教室/手機熱點/家用 Wi-Fi，電腦輸入 IP 或 http://timer10s.local 即可跨裝置觀戰！
-  - 核心狀態流程 (王董指定)：
-      * 歸零待機 (READY)：大碼表 00.000，按第 1 下 -> 開始計時狂飆。
-      * 計時狂飆 (RUNNING)：毫秒飛速跳動 (無讀秒音，純淨專注)，按第 2 下 -> 定格結算。
-      * 定格結算 (RESULT)：大字定格 + 1 秒極限分級慶祝 (防連點保護)。
-      * 歸零重置 (RESET)：1 秒過後按按鈕 -> 畫面歸零 (00.000)，再按一次才又啟動！
+      * 專屬熱點保底：Timer10s_XXXX (192.168.4.1) 永遠開啟。
+      * 外部 Wi-Fi 連線：mDNS 支援 http://timer10s.local/ 跨電腦/平板大螢幕投影觀戰。
   - 零晃動物理插槽：小數點與每個數字固定寬度，跑動時分毫不晃。
   - 4 款精選字體即時切換 (賽博科技 / 競技粗體 / 電子晶片 / 極簡等寬)。
-  - 雙重韌體升級機制：
-      * ☁️ 雲端一鍵更新：連上外網後，板子可直接從 GitHub / Drive 網址自動抓取最新 .bin 更新重啟！
-      * 🚀 本地無線 OTA：保留 /update 頁面，隨時透過瀏覽器本地拖曳上傳韌體。
-  - 硬體配置：完全相容 ArenaPod 機電腳位 (D3 按鍵、D5 LED、D6 蜂鳴器、D4/D7 虛擬接地)。
+  - 雲端 OTA 一鍵升級 (支援 Google Drive 與 GitHub)。
   
   開發者：王朝葦 老師 (王董) / 高雄市科技教育輔導團
   ================================================================================
@@ -30,6 +30,7 @@
 #include <WiFiClientSecure.h>
 #include <ESP8266mDNS.h>
 #include <DNSServer.h>
+#include <EEPROM.h>
 #include "webpage.h"
 
 // --------------------------- 硬體腳位定義 (ArenaPod 標準配線) ---------------------------
@@ -38,28 +39,44 @@
 #define PIN_LED_EXT      14    // D5 (GPIO14) - 按鈕 LED 正極
 #define PIN_BUZZER       12    // D6 (GPIO12) - 無源蜂鳴器正極
 #define PIN_VIRTUAL_GND  13    // D7 (GPIO13) - 蜂鳴器負極 (虛擬接地 0V)
-#define PIN_LED_BUILTIN  2     // D4 (GPIO2 / 內建 LED，低電位亮)
+#define PIN_LED_BUILTIN  2     // D4 (GPIO2 / 內建 LED)
 
 #define DNS_PORT         53
 #define MAX_SSE_CLIENTS  4
 #define CELEBRATE_MS     1000  // 王董指定：定格慶祝與防連點空窗期 (恰好 1.0 秒)
 
-// 預設雲端韌體下載網址 (支援 Google Drive 直連與 GitHub)
-const char DEFAULT_CLOUD_URL[] = "https://drive.google.com/uc?export=download&id=1QwJxZ1gZpncdnnJL5c4IYgl0H-iliAxm";
-
-// --------------------------- 遊戲狀態機 ---------------------------
-enum GameState {
-  STATE_READY,      // 歸零就緒 (大碼表顯示 00.000)，按下按鍵 -> 進入 STATE_RUNNING 狂飆
-  STATE_RUNNING,    // 計時狂飆中，按下按鍵 -> 進入 STATE_RESULT 定格
-  STATE_RESULT      // 定格顯示成績中 (前 1 秒慶祝鎖定；1 秒後按按鈕 -> 歸零進入 STATE_READY)
+// EEPROM 持久化 Wi-Fi 結構
+#define EEPROM_MAGIC     0x55AA10EC
+struct WifiStorage {
+  uint32_t magic;
+  char ssid[33];
+  char pass[65];
 };
 
+// 預設雲端韌體下載網址 (Google Drive 直連)
+const char DEFAULT_CLOUD_URL[] = "https://drive.google.com/uc?export=download&id=1QwJxZ1gZpncdnnJL5c4IYgl0H-iliAxm";
+
+// --------------------------- 遊戲模式與狀態機 ---------------------------
+enum GameMode {
+  MODE_TIME_LORD = 0,    // 遊戲 1：十秒停秒挑戰 (看誰最準 10.000s)
+  MODE_SPEED_TAPPER = 1  // 遊戲 2：十秒狂拍手速王 (10 秒內狂拍次數)
+};
+GameMode currentGameMode = MODE_TIME_LORD;
+
+enum GameState {
+  STATE_READY,      // 歸零就緒，按下按鍵 -> 進入 STATE_RUNNING
+  STATE_RUNNING,    // 進行中
+  STATE_RESULT      // 定格顯示成績中 (前 1 秒慶祝鎖定；1 秒後按按鈕 -> 歸零 STATE_READY)
+};
 GameState currentState = STATE_READY;
 
 unsigned long startTimeMs = 0;
 unsigned long stopTimeMs = 0;
 unsigned long cooldownUntilMs = 0;
 bool hasSentWaitReset = false;
+
+// 手速模式專用變數
+uint32_t tapperHits = 0;
 
 // 按鍵去彈跳處理
 int lastButtonState = HIGH;
@@ -77,6 +94,34 @@ DNSServer dnsServer;
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater;
 WiFiClient sseClients[MAX_SSE_CLIENTS];
+
+// --------------------------- EEPROM Wi-Fi 記憶讀寫 ---------------------------
+void loadWifiFromEEPROM() {
+  EEPROM.begin(sizeof(WifiStorage));
+  WifiStorage cfg;
+  EEPROM.get(0, cfg);
+  if (cfg.magic == EEPROM_MAGIC && strlen(cfg.ssid) > 0) {
+    Serial.printf("[EEPROM] 讀取到已儲存的 Wi-Fi 設定: SSID=%s\n", cfg.ssid);
+    WiFi.begin(cfg.ssid, cfg.pass);
+  } else {
+    Serial.println("[EEPROM] 尚無儲存的 Wi-Fi 紀錄。");
+    // 仍可嘗試晶片出廠快閃預設
+    WiFi.begin();
+  }
+}
+
+void saveWifiToEEPROM(const String& ssid, const String& pass) {
+  WifiStorage cfg;
+  cfg.magic = EEPROM_MAGIC;
+  memset(cfg.ssid, 0, sizeof(cfg.ssid));
+  memset(cfg.pass, 0, sizeof(cfg.pass));
+  strncpy(cfg.ssid, ssid.c_str(), sizeof(cfg.ssid) - 1);
+  strncpy(cfg.pass, pass.c_str(), sizeof(cfg.pass) - 1);
+
+  EEPROM.put(0, cfg);
+  EEPROM.commit();
+  Serial.printf("[EEPROM] 已成功將 Wi-Fi: %s 永久寫入 EEPROM (重新燒錄依然保留)！\n", cfg.ssid);
+}
 
 // --------------------------- 輔助音效與 LED 控制 ---------------------------
 void playAsyncTone(unsigned int freq, unsigned long durationMs) {
@@ -100,18 +145,19 @@ void setLeds(bool on) {
 void updateLeds() {
   unsigned long now = millis();
   if (currentState == STATE_READY) {
-    // 歸零待機：慢速閃爍提示隨時可拍
     if (now >= nextLedBlinkTime) {
       ledState = !ledState;
       setLeds(ledState);
       nextLedBlinkTime = now + 600;
     }
   } else if (currentState == STATE_RUNNING) {
-    // 計時狂飆：LED 常亮
-    setLeds(true);
+    if (currentGameMode == MODE_TIME_LORD) {
+      setLeds(true);
+    } else {
+      // 手速模式：每次拍擊時爆亮
+    }
   } else if (currentState == STATE_RESULT) {
     if (now < cooldownUntilMs) {
-      // 1 秒慶祝期：快速爆閃
       if (now >= nextLedBlinkTime) {
         ledState = !ledState;
         setLeds(ledState);
@@ -134,7 +180,7 @@ void broadcastSSE(const String& payload) {
 }
 
 // --------------------------- 稱號判定函式 ---------------------------
-String calculateRank(long deltaMs) {
+String calculateRankTimeLord(long deltaMs) {
   long absDelta = abs(deltaMs);
   if (absDelta == 0) return "神之領域 (PERFECT!)";
   if (absDelta <= 50) return "人體節拍器 (GODLIKE)";
@@ -144,55 +190,92 @@ String calculateRank(long deltaMs) {
   return "時空亂流 (MISS)";
 }
 
+String calculateRankTapper(uint32_t hits) {
+  if (hits >= 90) return "神之手速 (GODSPEED!)";
+  if (hits >= 75) return "無影神指 (MASTER)";
+  if (hits >= 60) return "人體加特林 (EXCELLENT)";
+  if (hits >= 45) return "熱血快手 (PRO)";
+  if (hits >= 30) return "靈巧節奏 (GOOD)";
+  return "佛系慢點 (ROOKIE)";
+}
+
 // --------------------------- 核心按鍵動作邏輯 ---------------------------
 void handleActionTrigger() {
   unsigned long now = millis();
 
-  if (currentState == STATE_READY) {
-    // 狀態 1：歸零狀態下拍擊 -> 正式啟動計時狂飆！
-    currentState = STATE_RUNNING;
-    startTimeMs = now;
-    playAsyncTone(1200, 60);
+  // ---------------- 模式 0：十秒停秒挑戰 ----------------
+  if (currentGameMode == MODE_TIME_LORD) {
+    if (currentState == STATE_READY) {
+      currentState = STATE_RUNNING;
+      startTimeMs = now;
+      playAsyncTone(1200, 60);
 
-    String json = "{\"type\":\"START\",\"time\":" + String(startTimeMs) + "}";
-    broadcastSSE(json);
-    Serial.println("[GAME] 計時啟動狂飆！");
-  }
-  else if (currentState == STATE_RUNNING) {
-    // 狀態 2：計時狂飆中拍擊 -> 定格結算！進入 1 秒慶祝鎖定
-    currentState = STATE_RESULT;
-    stopTimeMs = now;
-    unsigned long elapsed = stopTimeMs - startTimeMs;
-    long delta = (long)elapsed - 10000;
-    cooldownUntilMs = now + CELEBRATE_MS;
-    hasSentWaitReset = false;
-
-    String rank = calculateRank(delta);
-
-    if (abs(delta) <= 50) {
-      playAsyncTone(1760, 150);
-    } else {
-      playAsyncTone(600, 100);
+      String json = "{\"type\":\"START\",\"mode\":0,\"time\":" + String(startTimeMs) + "}";
+      broadcastSSE(json);
+      Serial.println("[TIME-LORD] 計時啟動狂飆！");
     }
+    else if (currentState == STATE_RUNNING) {
+      currentState = STATE_RESULT;
+      stopTimeMs = now;
+      unsigned long elapsed = stopTimeMs - startTimeMs;
+      long delta = (long)elapsed - 10000;
+      cooldownUntilMs = now + CELEBRATE_MS;
+      hasSentWaitReset = false;
 
-    String json = "{\"type\":\"STOP\",\"elapsed\":" + String(elapsed) +
-                  ",\"delta\":" + String(delta) +
-                  ",\"rank\":\"" + rank + "\"" +
-                  ",\"cooldown\":" + String(CELEBRATE_MS) + "}";
-    broadcastSSE(json);
+      String rank = calculateRankTimeLord(delta);
+      if (abs(delta) <= 50) playAsyncTone(1760, 150);
+      else playAsyncTone(600, 100);
 
-    Serial.printf("[GAME] 定格！時間: %lu ms, 誤差: %ld ms, 評價: %s\n", elapsed, delta, rank.c_str());
+      String json = "{\"type\":\"STOP\",\"mode\":0,\"elapsed\":" + String(elapsed) +
+                    ",\"delta\":" + String(delta) +
+                    ",\"rank\":\"" + rank + "\"" +
+                    ",\"cooldown\":" + String(CELEBRATE_MS) + "}";
+      broadcastSSE(json);
+      Serial.printf("[TIME-LORD] 定格！時間: %lu ms, 誤差: %ld ms, 評價: %s\n", elapsed, delta, rank.c_str());
+    }
+    else if (currentState == STATE_RESULT) {
+      if (now < cooldownUntilMs) {
+        Serial.println("[GAME] 1 秒慶祝鎖定中，防連點忽略！");
+      } else {
+        currentState = STATE_READY;
+        playAsyncTone(800, 60);
+        broadcastSSE("{\"type\":\"RESET\",\"mode\":0}");
+        Serial.println("[TIME-LORD] 歸零重置 (00.000)！等待下一次拍擊啟動。");
+      }
+    }
   }
-  else if (currentState == STATE_RESULT) {
-    // 狀態 3：遊戲結束後的按壓處理
-    if (now < cooldownUntilMs) {
-      Serial.println("[GAME] 1 秒慶祝鎖定中，防連點忽略！");
-    } else {
-      // 王董指定：1 秒結束後再按一次按鈕 -> 歸零重置！(再按一次才又啟動)
-      currentState = STATE_READY;
-      playAsyncTone(800, 60);
-      broadcastSSE("{\"type\":\"RESET\"}");
-      Serial.println("[GAME] 按鈕拍擊 -> 歸零重置 (00.000)！等待下一次拍擊啟動。");
+  // ---------------- 模式 1：十秒狂拍手速王 ----------------
+  else {
+    if (currentState == STATE_READY) {
+      currentState = STATE_RUNNING;
+      startTimeMs = now;
+      tapperHits = 1;
+      playAsyncTone(1400, 70);
+      setLeds(true);
+
+      String json = "{\"type\":\"START\",\"mode\":1,\"time\":" + String(startTimeMs) + ",\"hits\":1}";
+      broadcastSSE(json);
+      Serial.println("[SPEED-TAPPER] 倒數 10 秒狂拍開始！第 1 下！");
+    }
+    else if (currentState == STATE_RUNNING) {
+      // 狂按計次！
+      tapperHits++;
+      playAsyncTone(1200 + min(tapperHits * 15, 800U), 25);
+      setLeds(true);
+
+      String json = "{\"type\":\"HIT\",\"hits\":" + String(tapperHits) + "}";
+      broadcastSSE(json);
+    }
+    else if (currentState == STATE_RESULT) {
+      if (now < cooldownUntilMs) {
+        Serial.println("[GAME] 1 秒慶祝鎖定中，防連點忽略！");
+      } else {
+        currentState = STATE_READY;
+        tapperHits = 0;
+        playAsyncTone(800, 60);
+        broadcastSSE("{\"type\":\"RESET\",\"mode\":1}");
+        Serial.println("[SPEED-TAPPER] 歸零重置 (0)！等待下一次狂拍開始。");
+      }
     }
   }
 }
@@ -205,6 +288,19 @@ void handleRoot() {
 void handleVirtualButton() {
   handleActionTrigger();
   server.send(200, "text/plain", "OK");
+}
+
+void handleSetMode() {
+  if (server.hasArg("set")) {
+    int m = server.arg("set").toInt();
+    currentGameMode = (m == 1) ? MODE_SPEED_TAPPER : MODE_TIME_LORD;
+    currentState = STATE_READY;
+    tapperHits = 0;
+    String json = "{\"type\":\"RESET\",\"mode\":" + String(currentGameMode) + "}";
+    broadcastSSE(json);
+    Serial.printf("[GAME] 切換模式為: %s\n", (currentGameMode == MODE_TIME_LORD ? "十秒停秒" : "十秒手速"));
+  }
+  server.send(200, "application/json", "{\"mode\":" + String(currentGameMode) + "}");
 }
 
 void handleSSE() {
@@ -220,13 +316,16 @@ void handleSSE() {
       client.println();
       client.flush();
 
+      // 回報當前模式與狀態
       if (currentState == STATE_RUNNING) {
-        String json = "{\"type\":\"START\",\"time\":" + String(startTimeMs) + "}";
+        String json = "{\"type\":\"START\",\"mode\":" + String(currentGameMode) +
+                      ",\"time\":" + String(startTimeMs) +
+                      ",\"hits\":" + String(tapperHits) + "}";
         client.print("data: " + json + "\n\n");
       } else if (currentState == STATE_READY) {
-        client.print("data: {\"type\":\"RESET\"}\n\n");
+        client.print("data: {\"type\":\"RESET\",\"mode\":" + String(currentGameMode) + "}\n\n");
       } else {
-        client.print("data: {\"type\":\"WAIT_RESET\"}\n\n");
+        client.print("data: {\"type\":\"WAIT_RESET\",\"mode\":" + String(currentGameMode) + "}\n\n");
       }
       return;
     }
@@ -267,12 +366,15 @@ void handleWifiConnect() {
   String pass = server.hasArg("pass") ? server.arg("pass") : "";
 
   Serial.printf("[WIFI] 收到連線要求: SSID=%s\n", ssid.c_str());
+  // 1. 永久寫入 EEPROM
+  saveWifiToEEPROM(ssid, pass);
+  // 2. 進行連線
   WiFi.begin(ssid.c_str(), pass.c_str());
 
   server.send(200, "application/json", "{\"status\":\"CONNECTING\"}");
 }
 
-// --------------------------- 雲端 OTA 更新 API (GitHub / 遠端伺服器) ---------------------------
+// --------------------------- 雲端 OTA 更新 API ---------------------------
 void handleCloudOTA() {
   String url = server.hasArg("url") && server.arg("url").length() > 5 ? server.arg("url") : String(DEFAULT_CLOUD_URL);
   Serial.printf("[CLOUD-OTA] 準備從雲端更新: %s\n", url.c_str());
@@ -292,7 +394,7 @@ void handleCloudOTA() {
   t_httpUpdate_return ret;
   if (url.startsWith("https://")) {
     WiFiClientSecure secureClient;
-    secureClient.setInsecure(); // 略過 SSL 證書檢驗，確保 GitHub/Drive 直連無阻
+    secureClient.setInsecure();
     secureClient.setBufferSizes(1024, 512);
     ret = ESPhttpUpdate.update(secureClient, url);
   } else {
@@ -318,7 +420,7 @@ void setup() {
   Serial.begin(115200);
   delay(100);
   Serial.println("\n\n========================================");
-  Serial.println("⏱️  十秒挑戰機 (10-Second Challenge) 啟動");
+  Serial.println("⏱️  十秒挑戰雙競技 (Time Lord & Speed Tapper)");
   Serial.println("========================================");
 
   pinMode(PIN_BUTTON, INPUT_PULLUP);
@@ -335,17 +437,15 @@ void setup() {
   char apName[32];
   snprintf(apName, sizeof(apName), "Timer10s_%04X", (uint16_t)(chipId & 0xFFFF));
 
-  // 雙模 AP + STA 架構：AP 永遠開啟保證可用，STA 自動嘗試背景連線
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
   WiFi.softAP(apName);
 
-  // 嘗試使用上次連線過的 Wi-Fi 記憶
-  WiFi.begin();
+  // 從 EEPROM 載入歷史 Wi-Fi 設定自動連線
+  loadWifiFromEEPROM();
 
   Serial.printf("[WIFI] 專屬熱點: %s (http://192.168.4.1/)\n", apName);
 
-  // 啟動 mDNS 服務：區網內可直接透過 http://timer10s.local 連入
   if (MDNS.begin("timer10s")) {
     MDNS.addService("http", "tcp", 80);
     Serial.println("[mDNS] 網址支援: http://timer10s.local/");
@@ -357,6 +457,10 @@ void setup() {
   server.on("/", HTTP_GET, handleRoot);
   server.on("/events", HTTP_GET, handleSSE);
   server.on("/api/button", HTTP_POST, handleVirtualButton);
+  server.on("/api/mode", HTTP_POST, handleSetMode);
+  server.on("/api/mode", HTTP_GET, []() {
+    server.send(200, "application/json", "{\"mode\":" + String(currentGameMode) + "}");
+  });
   server.on("/api/wifi/status", HTTP_GET, handleWifiStatus);
   server.on("/api/wifi/scan", HTTP_GET, handleWifiScan);
   server.on("/api/wifi/connect", HTTP_POST, handleWifiConnect);
@@ -370,7 +474,6 @@ void setup() {
     server.send(302, "text/plain", "");
   });
 
-  // 本地無線韌體更新 Web OTA
   httpUpdater.setup(&server, "/update");
   Serial.println("[OTA] 本地韌體更新: http://192.168.4.1/update");
 
@@ -390,11 +493,34 @@ void loop() {
 
   unsigned long now = millis();
 
+  // 手速狂拍模式：倒數 10 秒時間到自動結算！
+  if (currentGameMode == MODE_SPEED_TAPPER && currentState == STATE_RUNNING) {
+    if (now - startTimeMs >= 10000) {
+      currentState = STATE_RESULT;
+      stopTimeMs = now;
+      cooldownUntilMs = now + CELEBRATE_MS;
+      hasSentWaitReset = false;
+
+      float cps = (float)tapperHits / 10.0;
+      String rank = calculateRankTapper(tapperHits);
+
+      if (tapperHits >= 75) playAsyncTone(1760, 200);
+      else playAsyncTone(880, 150);
+
+      String json = "{\"type\":\"STOP\",\"mode\":1,\"hits\":" + String(tapperHits) +
+                    ",\"cps\":" + String(cps, 1) +
+                    ",\"rank\":\"" + rank + "\"" +
+                    ",\"cooldown\":" + String(CELEBRATE_MS) + "}";
+      broadcastSSE(json);
+      Serial.printf("[SPEED-TAPPER] 10秒時間到！總點擊: %u 下, CPS: %.1f, 評價: %s\n", tapperHits, cps, rank.c_str());
+    }
+  }
+
   // 1 秒慶祝結束後，提示玩家可拍擊歸零
   if (currentState == STATE_RESULT) {
     if (now >= cooldownUntilMs && !hasSentWaitReset) {
       hasSentWaitReset = true;
-      broadcastSSE("{\"type\":\"WAIT_RESET\"}");
+      broadcastSSE("{\"type\":\"WAIT_RESET\",\"mode\":" + String(currentGameMode) + "}");
       Serial.println("[GAME] 1 秒慶祝結束，提示玩家按按鈕歸零！");
     }
   }
