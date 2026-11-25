@@ -468,11 +468,11 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
     <!-- 視圖 3：🦖 經典單鍵離線小恐龍 (Chrome Dino Runner) -->
     <div id="boxDino" style="display:none; width:100%; max-width:820px; flex-direction:column; align-items:center; gap:8px;">
-      <div style="width:100%; display:flex; justify-content:space-between; align-items:center; font-family:'Share Tech Mono', monospace; font-size:clamp(1.1rem, 2.5vw, 1.8rem); font-weight:700; color:var(--text); padding:0 8px;">
-        <span style="color:var(--muted);">HI <strong id="dinoHighScore" style="color:var(--gold);">00000</strong></span>
-        <span id="dinoCurrentScore" style="color:var(--cyan); font-weight:900;">00000</span>
+      <div style="width:100%; display:flex; justify-content:space-between; align-items:center; font-family:'Share Tech Mono', 'Courier New', monospace; font-size:clamp(1.1rem, 2.5vw, 1.8rem); font-weight:700; color:#535353; padding:0 12px; letter-spacing:2px;">
+        <span style="color:#757575;">HI <strong id="dinoHighScore" style="color:#d1d5db;">00000</strong></span>
+        <span id="dinoCurrentScore" style="color:#f3f4f6; font-weight:900;">00000</span>
       </div>
-      <canvas id="dinoCanvas" width="800" height="240" style="width:100%; height:auto; background:rgba(8, 14, 28, 0.85); border:1px solid rgba(0,242,254,0.3); border-radius:12px; box-shadow:0 0 35px rgba(0,242,254,0.18);"></canvas>
+      <canvas id="dinoCanvas" width="800" height="240" style="width:100%; height:auto; background:#202124; border:1px solid #535353; border-radius:10px; box-shadow:0 8px 30px rgba(0,0,0,0.7);"></canvas>
     </div>
 
     <!-- 定格結算資訊 -->
@@ -1381,9 +1381,9 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       }
     }
 
-    // ==========================================
-    // 🦖 經典單鍵離線小恐龍 (Chrome Dino Runner)
-    // ==========================================
+    // ==========================================================================
+    // 🦖 經典單鍵離線小恐龍 (1:1 原版 Google Chrome T-Rex Runner 像素重現)
+    // ==========================================================================
     const dinoCanvas = document.getElementById('dinoCanvas');
     const dinoCtx = dinoCanvas ? dinoCanvas.getContext('2d') : null;
     const dinoHighScoreEl = document.getElementById('dinoHighScore');
@@ -1392,70 +1392,111 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
     let dinoHiScore = parseInt(localStorage.getItem('dino10s_hi') || '0', 10);
     let dinoScore = 0;
-    let dinoSpeed = 6;
+    let dinoSpeed = 3.6;       // 🐣 起跑初始速度超親民 (由易到難，讓所有人都能上手)
     let isDinoRunning = false;
     let isDinoOver = false;
     let dinoLoopId = null;
 
     const GROUND_Y = 195;
 
+    // 🦖 Google Chrome 原版 1:1 像素級小恐龍 (44 x 47)
     const dino = {
-      x: 50,
-      y: GROUND_Y - 46,
-      w: 42,
-      h: 46,
+      x: 55,
+      y: GROUND_Y - 47,
+      w: 44,
+      h: 47,
       vy: 0,
-      gravity: 0.65,
-      jumpForce: -12.5,
+      gravity: 0.58,           // 輕盈自然的重力
+      jumpForce: -11.6,         // 完美蓄力滯空跳躍
       isGrounded: true,
       legFrame: 0,
       draw: function(ctx) {
         ctx.save();
-        ctx.fillStyle = '#00ff87';
-        ctx.shadowColor = '#00ff87';
-        ctx.shadowBlur = 8;
+        ctx.fillStyle = '#acacac'; // Chrome 原版經典灰
 
-        const x = this.x;
-        const y = this.y;
+        const x = Math.round(this.x);
+        const y = Math.round(this.y);
 
-        // 像素風格可愛暴龍
-        ctx.fillRect(x + 10, y + 14, 22, 22);
-        ctx.fillRect(x + 20, y + 2, 22, 16);
-        ctx.fillRect(x + 36, y + 8, 6, 8);
+        // --- 1. 頭部與吻部 ---
+        ctx.fillRect(x + 22, y + 0, 20, 2);
+        ctx.fillRect(x + 20, y + 2, 24, 2);
+        ctx.fillRect(x + 20, y + 4, 24, 8); // 主頭部
+        ctx.fillRect(x + 22, y + 12, 22, 2);
+        ctx.fillRect(x + 22, y + 14, 16, 2); // 上顎
+        ctx.fillRect(x + 22, y + 16, 12, 2);
+
+        // 眼睛
         if (isDinoOver) {
-          ctx.strokeStyle = '#ff0055';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(x + 26, y + 5); ctx.lineTo(x + 32, y + 11);
-          ctx.moveTo(x + 32, y + 5); ctx.lineTo(x + 26, y + 11);
-          ctx.stroke();
+          // 死掉時：經典 Chrome 放大震驚圓眼
+          ctx.fillStyle = '#202124';
+          ctx.fillRect(x + 24, y + 4, 5, 5);
+          ctx.fillStyle = '#acacac';
+          ctx.fillRect(x + 25, y + 5, 3, 3);
         } else {
-          ctx.fillStyle = '#080e1c';
-          ctx.fillRect(x + 26, y + 6, 4, 4);
-          ctx.fillStyle = '#00ff87';
+          // 正常眼睛：白瞳＋黑色眼珠
+          ctx.fillStyle = '#202124';
+          ctx.fillRect(x + 24, y + 4, 4, 4);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(x + 24, y + 4, 2, 2);
+          ctx.fillStyle = '#acacac';
         }
-        ctx.fillRect(x + 30, y + 22, 6, 4);
-        ctx.fillRect(x + 34, y + 24, 2, 4);
-        ctx.fillRect(x + 2, y + 18, 8, 8);
-        ctx.fillRect(x - 4, y + 22, 6, 6);
-        ctx.fillRect(x - 8, y + 25, 4, 4);
 
+        // 嘴巴開咬牙縫線
+        ctx.fillStyle = '#202124';
+        ctx.fillRect(x + 36, y + 10, 8, 2);
+        ctx.fillStyle = '#acacac';
+
+        // --- 2. 前肢手手 ---
+        ctx.fillRect(x + 32, y + 20, 4, 2);
+        ctx.fillRect(x + 34, y + 22, 2, 4);
+
+        // --- 3. 軀幹與脊背 ---
+        ctx.fillRect(x + 18, y + 14, 4, 4);
+        ctx.fillRect(x + 16, y + 16, 4, 4);
+        ctx.fillRect(x + 12, y + 18, 18, 14);
+        ctx.fillRect(x + 10, y + 20, 20, 10);
+
+        // --- 4. 尾巴 ---
+        ctx.fillRect(x + 6, y + 22, 6, 8);
+        ctx.fillRect(x + 2, y + 24, 6, 6);
+        ctx.fillRect(x + 0, y + 26, 4, 4);
+
+        // --- 5. 雙腳步態 (Chrome 經典 2-Frame 奔跑動畫) ---
         if (!this.isGrounded) {
-          ctx.fillRect(x + 12, y + 36, 4, 8);
-          ctx.fillRect(x + 22, y + 36, 4, 6);
+          // 跳躍空中：雙腿向後縮合
+          ctx.fillRect(x + 14, y + 32, 4, 8);
+          ctx.fillRect(x + 22, y + 32, 4, 8);
+          ctx.fillRect(x + 14, y + 40, 6, 2);
+          ctx.fillRect(x + 22, y + 40, 6, 2);
+        } else if (isDinoOver) {
+          // 死亡定格步態
+          ctx.fillRect(x + 14, y + 32, 4, 10);
+          ctx.fillRect(x + 14, y + 42, 6, 2);
+          ctx.fillRect(x + 24, y + 32, 4, 6);
+          ctx.fillRect(x + 24, y + 38, 4, 4);
         } else {
-          if (this.legFrame < 4) {
-            ctx.fillRect(x + 12, y + 36, 4, 10);
-            ctx.fillRect(x + 22, y + 36, 4, 6);
+          // 奔跑中：左腳下蹬 vs 右腳下蹬
+          if (this.legFrame < 6) {
+            // 左腳直立蹬地
+            ctx.fillRect(x + 14, y + 32, 4, 13);
+            ctx.fillRect(x + 14, y + 45, 6, 2);
+            // 右腳收起彎折
+            ctx.fillRect(x + 24, y + 32, 4, 6);
+            ctx.fillRect(x + 24, y + 38, 4, 2);
           } else {
-            ctx.fillRect(x + 12, y + 36, 4, 6);
-            ctx.fillRect(x + 22, y + 36, 4, 10);
+            // 左腳收起彎折
+            ctx.fillRect(x + 14, y + 32, 4, 6);
+            ctx.fillRect(x + 14, y + 38, 4, 2);
+            // 右腳直立蹬地
+            ctx.fillRect(x + 24, y + 32, 4, 13);
+            ctx.fillRect(x + 24, y + 45, 6, 2);
           }
         }
         ctx.restore();
       }
     };
 
+    // 障礙物與場景物件
     let obstacles = [];
     let clouds = [
       { x: 100, y: 35, s: 0.3 },
@@ -1465,15 +1506,71 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     let groundOffset = 0;
     let lastMilestone = 0;
 
+    // 🌵 Google Chrome 官方 1:1 小仙人掌 (17 x 35) - 左高右低經典不對稱分支
+    function drawSmallCactus(ctx, x, y) {
+      ctx.save();
+      ctx.fillStyle = '#acacac';
+      // 主幹
+      ctx.fillRect(x + 5, y + 0, 6, 35);
+      ctx.fillRect(x + 6, y + 0, 4, 1);
+      // 左側高分支
+      ctx.fillRect(x + 0, y + 8, 5, 4);
+      ctx.fillRect(x + 0, y + 4, 4, 12);
+      // 右側低分支
+      ctx.fillRect(x + 11, y + 14, 5, 4);
+      ctx.fillRect(x + 13, y + 10, 4, 12);
+      ctx.restore();
+    }
+
+    // 🌵 Google Chrome 官方 1:1 大仙人掌 (25 x 50)
+    function drawLargeCactus(ctx, x, y) {
+      ctx.save();
+      ctx.fillStyle = '#acacac';
+      // 主幹
+      ctx.fillRect(x + 8, y + 0, 9, 50);
+      // 左側分支
+      ctx.fillRect(x + 0, y + 14, 8, 5);
+      ctx.fillRect(x + 0, y + 8, 5, 18);
+      // 右側分支
+      ctx.fillRect(x + 17, y + 22, 8, 5);
+      ctx.fillRect(x + 20, y + 14, 5, 18);
+      ctx.restore();
+    }
+
+    // 🦅 Google Chrome 官方 1:1 翼龍 (40 x 30) - 雙翅膀扇動
+    function drawPterodactyl(ctx, x, y, wingUp) {
+      ctx.save();
+      ctx.fillStyle = '#acacac';
+      // 身體與嘴喙
+      ctx.fillRect(x + 12, y + 10, 18, 8);
+      ctx.fillRect(x + 0, y + 12, 12, 4); // 長長尖嘴
+      // 眼睛
+      ctx.fillStyle = '#202124';
+      ctx.fillRect(x + 10, y + 11, 2, 2);
+      ctx.fillStyle = '#acacac';
+      // 尾翼
+      ctx.fillRect(x + 30, y + 12, 8, 4);
+
+      // 翅膀拍動
+      if (wingUp) {
+        ctx.fillRect(x + 14, y - 8, 8, 18);
+        ctx.fillRect(x + 18, y - 16, 5, 9);
+      } else {
+        ctx.fillRect(x + 14, y + 16, 8, 16);
+        ctx.fillRect(x + 18, y + 24, 5, 9);
+      }
+      ctx.restore();
+    }
+
     function initDinoGame() {
       if (dinoLoopId) cancelAnimationFrame(dinoLoopId);
       isDinoRunning = false;
       isDinoOver = false;
       dinoScore = 0;
-      dinoSpeed = 6;
+      dinoSpeed = 3.6;          // 起跑慢速
       lastMilestone = 0;
       obstacles = [];
-      dino.y = GROUND_Y - 46;
+      dino.y = GROUND_Y - 47;
       dino.vy = 0;
       dino.isGrounded = true;
 
@@ -1482,8 +1579,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
       if (dinoCtx) {
         dinoCtx.save();
-        dinoCtx.fillStyle = 'rgba(0, 242, 254, 0.9)';
-        dinoCtx.font = 'bold 20px "Share Tech Mono", monospace';
+        dinoCtx.fillStyle = '#acacac';
+        dinoCtx.font = 'bold 18px "Share Tech Mono", monospace';
         dinoCtx.textAlign = 'center';
         dinoCtx.fillText('拍擊實體大按鈕 或 點擊螢幕 開始起跑！', 400, 110);
         dinoCtx.restore();
@@ -1497,16 +1594,16 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       isDinoRunning = true;
       isDinoOver = false;
       dinoScore = 0;
-      dinoSpeed = 6;
+      dinoSpeed = 3.6;
       lastMilestone = 0;
       obstacles = [];
-      dino.y = GROUND_Y - 46;
+      dino.y = GROUND_Y - 47;
       dino.vy = 0;
       dino.isGrounded = true;
 
       bottomHint.className = 'bottom-hint';
-      bottomHint.innerHTML = '<span>⚡ 奔馳中！拍擊按鈕跳躍閃避障礙！</span>';
-      playTone(650, 'square', 0.06, 0.35);
+      bottomHint.innerHTML = '<span>⚡ 慢速起跑奔馳中！拍擊按鈕跳躍！</span>';
+      playTone(650, 'square', 0.05, 0.35);
 
       if (dinoLoopId) cancelAnimationFrame(dinoLoopId);
       dinoLoop();
@@ -1533,115 +1630,114 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     }
 
     function spawnObstacle() {
-      const canPtero = dinoScore >= 350 && Math.random() < 0.3;
-      if (canPtero) {
-        obstacles.push({
-          type: 'ptero',
-          x: 820,
-          y: Math.random() < 0.6 ? 142 : 105,
-          w: 38,
-          h: 26,
-          wingFrame: 0
-        });
-      } else {
-        const r = Math.random();
-        if (r < 0.35) {
-          obstacles.push({ type: 'c_small', x: 820, y: GROUND_Y - 34, w: 16, h: 34 });
-        } else if (r < 0.7) {
-          obstacles.push({ type: 'c_double', x: 820, y: GROUND_Y - 34, w: 34, h: 34 });
+      // 根據分數由易到難動態解鎖障礙物組合
+      if (dinoScore < 150) {
+        // 第一階段 (0~150分)：超友善練習期，只有單棵小仙人掌
+        obstacles.push({ type: 'c_small', x: 820, y: GROUND_Y - 35, w: 17, h: 35 });
+      } else if (dinoScore < 350) {
+        // 第二階段 (150~350分)：小仙人掌與大仙人掌交替
+        if (Math.random() < 0.6) {
+          obstacles.push({ type: 'c_small', x: 820, y: GROUND_Y - 35, w: 17, h: 35 });
         } else {
-          obstacles.push({ type: 'c_big', x: 820, y: GROUND_Y - 46, w: 22, h: 46 });
+          obstacles.push({ type: 'c_big', x: 820, y: GROUND_Y - 50, w: 25, h: 50 });
+        }
+      } else if (dinoScore < 600) {
+        // 第三階段 (350~600分)：加入雙連小仙人掌與低飛翼龍
+        const r = Math.random();
+        if (r < 0.25) {
+          obstacles.push({ type: 'ptero', x: 820, y: 138, w: 38, h: 30, wingFrame: 0 });
+        } else if (r < 0.55) {
+          obstacles.push({ type: 'c_double', x: 820, y: GROUND_Y - 35, w: 34, h: 35 });
+        } else if (r < 0.8) {
+          obstacles.push({ type: 'c_big', x: 820, y: GROUND_Y - 50, w: 25, h: 50 });
+        } else {
+          obstacles.push({ type: 'c_small', x: 820, y: GROUND_Y - 35, w: 17, h: 35 });
+        }
+      } else {
+        // 第四階段 (600分以上)：大師級挑戰，翼龍高低飛與各種組合
+        const r = Math.random();
+        if (r < 0.3) {
+          const isLow = Math.random() < 0.65;
+          obstacles.push({ type: 'ptero', x: 820, y: isLow ? 138 : 105, w: 38, h: 30, wingFrame: 0 });
+        } else if (r < 0.6) {
+          obstacles.push({ type: 'c_double', x: 820, y: GROUND_Y - 35, w: 34, h: 35 });
+        } else if (r < 0.85) {
+          obstacles.push({ type: 'c_big', x: 820, y: GROUND_Y - 50, w: 25, h: 50 });
+        } else {
+          obstacles.push({ type: 'c_small', x: 820, y: GROUND_Y - 35, w: 17, h: 35 });
         }
       }
     }
 
     function drawDinoScene() {
       if (!dinoCtx) return;
-      dinoCtx.clearRect(0, 0, 800, 240);
+      // Google 原版暗黑風格背景
+      dinoCtx.fillStyle = '#202124';
+      dinoCtx.fillRect(0, 0, 800, 240);
 
-      // 雲朵
+      // Google 經典像素白雲
       dinoCtx.save();
-      dinoCtx.fillStyle = 'rgba(255,255,255,0.15)';
+      dinoCtx.fillStyle = '#3c4043';
       clouds.forEach(c => {
-        dinoCtx.beginPath();
-        dinoCtx.arc(c.x, c.y, 14, 0, Math.PI * 2);
-        dinoCtx.arc(c.x + 12, c.y - 6, 16, 0, Math.PI * 2);
-        dinoCtx.arc(c.x + 26, c.y, 14, 0, Math.PI * 2);
-        dinoCtx.fill();
+        dinoCtx.fillRect(c.x, c.y + 6, 46, 12);
+        dinoCtx.fillRect(c.x + 8, c.y, 24, 6);
+        dinoCtx.fillRect(c.x + 16, c.y - 4, 12, 4);
       });
       dinoCtx.restore();
 
-      // 地面
+      // 地面主軸線（Google 灰色 #535353）
       dinoCtx.save();
-      dinoCtx.strokeStyle = 'rgba(0, 242, 254, 0.4)';
-      dinoCtx.lineWidth = 2;
+      dinoCtx.strokeStyle = '#535353';
+      dinoCtx.lineWidth = 1.5;
       dinoCtx.beginPath();
       dinoCtx.moveTo(0, GROUND_Y);
       dinoCtx.lineTo(800, GROUND_Y);
       dinoCtx.stroke();
 
-      dinoCtx.fillStyle = 'rgba(0, 242, 254, 0.25)';
-      for (let i = 0; i < 20; i++) {
-        const gx = ((i * 45 - groundOffset) % 800 + 800) % 800;
-        dinoCtx.fillRect(gx, GROUND_Y + 4, (i % 3 === 0 ? 12 : 5), 2);
-        dinoCtx.fillRect(gx + 18, GROUND_Y + 10, 3, 2);
+      // 經典路面細碎地平線顆粒與斑紋
+      dinoCtx.fillStyle = '#535353';
+      for (let i = 0; i < 28; i++) {
+        const gx = ((i * 32 - groundOffset) % 800 + 800) % 800;
+        if (i % 3 === 0) {
+          dinoCtx.fillRect(gx, GROUND_Y + 4, 8, 2);
+        } else if (i % 2 === 0) {
+          dinoCtx.fillRect(gx, GROUND_Y + 8, 4, 2);
+          dinoCtx.fillRect(gx + 12, GROUND_Y + 12, 2, 2);
+        } else {
+          dinoCtx.fillRect(gx, GROUND_Y + 5, 2, 2);
+        }
       }
       dinoCtx.restore();
 
-      // 障礙物
+      // 繪製原汁原味 Google 障礙物
       obstacles.forEach(obs => {
-        dinoCtx.save();
         if (obs.type === 'ptero') {
-          dinoCtx.fillStyle = '#a855f7';
-          dinoCtx.shadowColor = '#a855f7';
-          dinoCtx.shadowBlur = 8;
           obs.wingFrame = (obs.wingFrame + 1) % 16;
           const wingUp = obs.wingFrame < 8;
-
-          dinoCtx.fillRect(obs.x + 10, obs.y + 8, 18, 10);
-          dinoCtx.fillRect(obs.x, obs.y + 11, 10, 4);
-          dinoCtx.fillStyle = '#fff';
-          dinoCtx.fillRect(obs.x + 8, obs.y + 9, 3, 3);
-          dinoCtx.fillStyle = '#a855f7';
-          if (wingUp) {
-            dinoCtx.fillRect(obs.x + 14, obs.y - 8, 8, 16);
-            dinoCtx.fillRect(obs.x + 18, obs.y - 14, 5, 8);
-          } else {
-            dinoCtx.fillRect(obs.x + 14, obs.y + 16, 8, 14);
-            dinoCtx.fillRect(obs.x + 18, obs.y + 24, 5, 8);
-          }
-        } else {
-          dinoCtx.fillStyle = '#ff7b00';
-          dinoCtx.shadowColor = '#ff7b00';
-          dinoCtx.shadowBlur = 8;
-          if (obs.type === 'c_small') {
-            dinoCtx.fillRect(obs.x + 4, obs.y, 8, obs.h);
-            dinoCtx.fillRect(obs.x, obs.y + 8, 4, 14);
-            dinoCtx.fillRect(obs.x + 12, obs.y + 12, 4, 14);
-          } else if (obs.type === 'c_double') {
-            dinoCtx.fillRect(obs.x + 4, obs.y, 8, obs.h);
-            dinoCtx.fillRect(obs.x, obs.y + 8, 4, 14);
-            dinoCtx.fillRect(obs.x + 20, obs.y + 4, 8, obs.h - 4);
-            dinoCtx.fillRect(obs.x + 28, obs.y + 12, 4, 14);
-          } else {
-            dinoCtx.fillRect(obs.x + 6, obs.y, 10, obs.h);
-            dinoCtx.fillRect(obs.x, obs.y + 10, 6, 20);
-            dinoCtx.fillRect(obs.x + 16, obs.y + 14, 6, 20);
-          }
+          drawPterodactyl(dinoCtx, obs.x, obs.y, wingUp);
+        } else if (obs.type === 'c_small') {
+          drawSmallCactus(dinoCtx, obs.x, obs.y);
+        } else if (obs.type === 'c_double') {
+          drawSmallCactus(dinoCtx, obs.x, obs.y);
+          drawSmallCactus(dinoCtx, obs.x + 17, obs.y);
+        } else if (obs.type === 'c_big') {
+          drawLargeCactus(dinoCtx, obs.x, obs.y);
         }
-        dinoCtx.restore();
       });
 
+      // 繪製 Google 1:1 像素小恐龍本體
       dino.draw(dinoCtx);
     }
 
     function checkDinoCollision(d, obs) {
-      const pad = 5;
+      // 貼心碰撞箱優化（避免邊角空氣牆誤判，提升手感）
+      const padX = 6;
+      const padY = 4;
       return (
-        d.x + pad < obs.x + obs.w &&
-        d.x + d.w - pad > obs.x &&
-        d.y + pad < obs.y + obs.h &&
-        d.y + d.h - 2 > obs.y
+        d.x + padX < obs.x + obs.w - 3 &&
+        d.x + d.w - padX > obs.x + 3 &&
+        d.y + padY < obs.y + obs.h &&
+        d.y + d.h - 3 > obs.y
       );
     }
 
@@ -1663,20 +1759,20 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       drawDinoScene();
       if (dinoCtx) {
         dinoCtx.save();
-        dinoCtx.fillStyle = 'rgba(0,0,0,0.7)';
-        dinoCtx.fillRect(200, 60, 400, 90);
-        dinoCtx.strokeStyle = 'var(--red)';
+        dinoCtx.fillStyle = 'rgba(32, 33, 36, 0.88)';
+        dinoCtx.fillRect(180, 50, 440, 100);
+        dinoCtx.strokeStyle = '#535353';
         dinoCtx.lineWidth = 2;
-        dinoCtx.strokeRect(200, 60, 400, 90);
+        dinoCtx.strokeRect(180, 50, 440, 100);
 
-        dinoCtx.fillStyle = 'var(--red)';
-        dinoCtx.font = 'bold 26px "Orbitron", sans-serif';
+        dinoCtx.fillStyle = '#acacac';
+        dinoCtx.font = 'bold 26px "Orbitron", monospace';
         dinoCtx.textAlign = 'center';
-        dinoCtx.fillText('G A M E   O V E R', 400, 100);
+        dinoCtx.fillText('G A M E   O V E R', 400, 92);
 
-        dinoCtx.fillStyle = 'var(--text)';
-        dinoCtx.font = 'bold 15px "Chakra Petch", sans-serif';
-        dinoCtx.fillText(`最終成績: ${finalScore} 分 · 拍擊按鈕重新開始`, 400, 130);
+        dinoCtx.fillStyle = '#00f2fe';
+        dinoCtx.font = 'bold 16px "Chakra Petch", sans-serif';
+        dinoCtx.fillText(`最終得分: ${finalScore} 分  ·  拍擊實體按鈕重新挑戰`, 400, 126);
         dinoCtx.restore();
       }
 
@@ -1695,19 +1791,22 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     function dinoLoop() {
       if (!isDinoRunning || currentGameMode !== 3) return;
 
+      // 物理跳躍與重力模擬
       dino.y += dino.vy;
       dino.vy += dino.gravity;
-      if (dino.y >= GROUND_Y - 46) {
-        dino.y = GROUND_Y - 46;
+      if (dino.y >= GROUND_Y - 47) {
+        dino.y = GROUND_Y - 47;
         dino.vy = 0;
         dino.isGrounded = true;
       }
       dino.legFrame = (dino.legFrame + 1) % 8;
 
-      dinoScore += 0.2;
-      dinoSpeed = 6 + Math.min(dinoScore / 250, 8);
+      // 難度梯度演算法：初始速度 3.6 (極好上手反應)，每跑180分平滑微幅加速，封頂 8.8
+      dinoSpeed = 3.6 + Math.min(dinoScore / 180, 5.2);
+      dinoScore += (dinoSpeed / 3.6) * 0.16;
       groundOffset = (groundOffset + dinoSpeed) % 800;
 
+      // 百分百音效彩蛋
       const curHundred = Math.floor(dinoScore / 100);
       if (curHundred > lastMilestone) {
         lastMilestone = curHundred;
@@ -1716,11 +1815,13 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       }
       updateDinoScoreBoard();
 
+      // 雲朵緩速漂移
       clouds.forEach(c => {
-        c.x -= c.s * 1.5;
-        if (c.x < -40) c.x = 840;
+        c.x -= c.s * 0.9;
+        if (c.x < -60) c.x = 860;
       });
 
+      // 障礙物位移與碰撞偵測
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
         obs.x -= dinoSpeed;
@@ -1730,13 +1831,15 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
           return;
         }
 
-        if (obs.x + obs.w < -20) {
+        if (obs.x + obs.w < -30) {
           obstacles.splice(i, 1);
         }
       }
 
+      // 障礙物生成間隔：分數低時距離超寬 (480~680px)，給予充分跳躍反應時間；高速時逐步縮短
+      const minGap = Math.max(300, 500 - (dinoScore * 0.28));
       const lastObs = obstacles[obstacles.length - 1];
-      if (!lastObs || (800 - lastObs.x >= 280 + Math.random() * 220)) {
+      if (!lastObs || (800 - lastObs.x >= minGap + Math.random() * 200)) {
         spawnObstacle();
       }
 
