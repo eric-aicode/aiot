@@ -249,10 +249,11 @@ String calculateRankDino(uint32_t score) {
 
 String calculateRankCliff(float distCm, bool busted) {
   if (busted) return "粉身碎骨 (WASTED)";
-  if (distCm <= 3.0) return "神之腳步 (GODLIKE!)";
-  if (distCm <= 15.0) return "亡命車神 (MASTER)";
-  if (distCm <= 45.0) return "頂級老司機 (PRO)";
-  if (distCm <= 100.0) return "安全駕駛 (SAFE)";
+  if (distCm == 0.0f) return "封神之境 0.0cm (ABSOLUTE ZERO!)";
+  if (distCm <= 1.5f) return "神之腳步 (GODLIKE!)";
+  if (distCm <= 5.0f) return "亡命車神 (MASTER)";
+  if (distCm <= 20.0f) return "頂級老司機 (PRO)";
+  if (distCm <= 50.0f) return "安全駕駛 (SAFE)";
   return "膽小烏龜 (CHICKEN)";
 }
 
