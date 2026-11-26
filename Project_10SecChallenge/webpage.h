@@ -2066,6 +2066,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
     let cliffLoopId = null;
     let cliffState = 'READY'; // READY, ACCEL, BRAKING, STOPPED, FALLING
+    let cliffStartTime = 0;
+    let cliffResetTime = 0;
     const CLIFF_ROAD_Y = 215;
     const CLIFF_EDGE_X = 860; // 懸崖邊緣位置 (跑道長達 820px)
     const CAR_START_X = 40;   // 起跑線
@@ -2137,7 +2139,9 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     function startCliffGame() {
       if (currentGameMode !== 4) return;
       if (cliffState === 'ACCEL' || cliffState === 'BRAKING') return;
+      if (performance.now() - cliffResetTime < 350) return; // 🛡️ 歸零防連點保護：重回起點 350ms 內忽略過快起跑！
 
+      cliffStartTime = performance.now();
       car.x = CAR_START_X;
       car.y = CLIFF_ROAD_Y - 24;
       car.speed = 0.8;
@@ -2168,6 +2172,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     function brakeCliffGame() {
       if (currentGameMode !== 4) return;
       if (cliffState !== 'ACCEL') return;
+      // 🛡️ 起跑防連點保護：起跑後 300ms 內忽略急煞指令，徹底杜絕連擊！
+      if (performance.now() - cliffStartTime < 300) return;
 
       cliffState = 'BRAKING';
 
@@ -2189,6 +2195,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       if (cliffState === 'READY' || cliffState === 'STOPPED') {
         startCliffGame();
       } else if (cliffState === 'ACCEL') {
+        if (performance.now() - cliffStartTime < 300) return; // 忽略連擊
         brakeCliffGame();
       }
     }
@@ -2297,6 +2304,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
           if (frontWheelCenter <= CLIFF_EDGE_X - 1) {
             // 🎉 成功煞住！
             cliffState = 'STOPPED';
+            cliffResetTime = performance.now();
 
             let distCm = '0.0';
             if (frontBumper <= CLIFF_EDGE_X) {
@@ -2366,6 +2374,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         if (car.y >= 280) {
           // 墜入深淵爆炸！
           cliffState = 'STOPPED';
+          cliffResetTime = performance.now();
           car.isBusted = true;
           car.finalDistCm = 0;
           car.finalRank = '粉身碎骨 (WASTED)';

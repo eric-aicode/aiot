@@ -410,6 +410,10 @@ void handleActionTrigger() {
   // ---------------- 模式 4：懸崖勒馬極限煞車 (方案 A：第 1 拍狂飆、第 2 拍急煞) ----------------
   else if (currentGameMode == MODE_CLIFF) {
     if (currentState == STATE_READY) {
+      if (now < cooldownUntilMs) {
+        Serial.println("[CLIFF] 歸零重置冷卻防連點中，忽略過快起跑！");
+        return;
+      }
       currentState = STATE_RUNNING;
       startTimeMs = now;
       setLeds(true);
@@ -419,6 +423,11 @@ void handleActionTrigger() {
       Serial.println("[CLIFF] 第 1 拍！油門一拜，朝萬丈懸崖極速狂飆！");
     }
     else if (currentState == STATE_RUNNING) {
+      // 🛡️ 起跑防連點保護：起跑後 300ms 內忽略煞車指令，杜絕實體按鍵彈跳與連擊誤觸！
+      if (now - startTimeMs < 300) {
+        Serial.println("[CLIFF] 起跑防連拍保護中 (300ms)，忽略微秒急煞！");
+        return;
+      }
       currentState = STATE_RESULT;
       stopTimeMs = now;
       cooldownUntilMs = now + CELEBRATE_MS;
@@ -434,6 +443,7 @@ void handleActionTrigger() {
         Serial.println("[GAME] 1 秒慶祝鎖定中，防連點忽略！");
       } else {
         currentState = STATE_READY;
+        cooldownUntilMs = now + 350; // 歸零後提供 350ms 緩衝防連點，防止同一次拍擊直接觸發起跑！
         playAsyncTone(800, 60);
         broadcastSSE("{\"type\":\"RESET\",\"mode\":4}");
         Serial.println("[CLIFF] 歸零重置！車輛倒車回起點，就緒。");
