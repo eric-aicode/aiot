@@ -33,6 +33,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       background: radial-gradient(circle at 50% 30%, #0d172b 0%, #050811 100%);
       color: var(--text);
       font-family: system-ui, sans-serif;
+      touch-action: manipulation;
+      -webkit-touch-callout: none;
     }
 
     #fxCanvas {
@@ -486,8 +488,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     👁️
   </div>
 
-  <!-- 中央巨幕舞台 -->
-  <main class="giant-arena" id="arenaMain" onclick="handleTapScreen()">
+  <!-- 中央巨幕舞台 (支援平板 pointerdown 0ms 極速觸發與防誤觸) -->
+  <main class="giant-arena" id="arenaMain" onpointerdown="handleTapScreen(event)" onclick="handleTapScreen(event)">
     <div class="target-banner" id="targetBanner">
       🎯 目標時間 <strong>10.000 秒</strong>
     </div>
@@ -1018,7 +1020,18 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       document.getElementById('btnSound').innerText = soundEnabled ? '🔊 音效開' : '🔇 靜音';
     }
 
-    function handleTapScreen() {
+    let lastTapTimestamp = 0;
+    function handleTapScreen(e) {
+      if (e) {
+        // 若使用者點擊的是按鈕、輸入框、抽屜等，不觸發螢幕大按鈕
+        if (e.target && e.target.closest && e.target.closest('button, input, select, a, .drawer-content, .drawer-overlay, .btn-collapse')) return;
+        if (e.type === 'pointerdown' && e.pointerType === 'mouse' && e.button !== 0) return;
+      }
+      const now = performance.now();
+      // 防止行動瀏覽器 pointerdown + click 產生雙重觸發 (小於 80ms 視為同一次觸碰)
+      if (now - lastTapTimestamp < 80) return;
+      lastTapTimestamp = now;
+
       if (audioCtx.state === 'suspended') audioCtx.resume();
       if (!isHostUnlocked) {
         showToast('🔒 觀賽模式保護中，請點擊上方【🔒 觀戰模式】解鎖！');
@@ -1031,6 +1044,16 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       }
       fetch('/api/button', { method: 'POST' }).catch(()=>{});
     }
+
+    // 電腦端鍵盤支援：空白鍵或 Enter 鍵等同點擊大按鈕
+    window.addEventListener('keydown', function(e) {
+      if (e.code === 'Space' || e.key === ' ' || e.code === 'Enter') {
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) return;
+        e.preventDefault();
+        handleTapScreen();
+      }
+    });
 
     // 本地平滑渲染
     function runLocalClock() {
