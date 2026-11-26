@@ -596,16 +596,12 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         <div id="otaDetailText" style="font-size:0.75rem; color:var(--muted); text-align:center;">準備中...</div>
       </div>
 
-      <!-- 方式一：雲端直連一鍵升級 -->
+      <!-- 方式一：GitHub 雲端一鍵升級 -->
       <div class="form-group" id="otaCloudSection" style="margin-top:6px;">
         <span class="form-label">方式 ①：GitHub 雲端一鍵下載寫入</span>
-        <div style="display:flex; gap:6px; margin-bottom:4px;">
-          <button class="pill-btn" style="padding:3px 8px; font-size:0.75rem;" onclick="setCloudUrl('github')">🐙 GitHub 載點 (推薦)</button>
-          <button class="pill-btn" style="padding:3px 8px; font-size:0.75rem;" onclick="setCloudUrl('drive')">📁 Google Drive 載點</button>
-        </div>
-        <input type="text" class="form-input" id="cloudOtaUrl" value="https://raw.githubusercontent.com/eric-aicode/aiot/main/Project_10SecChallenge/firmware_10SecChallenge.bin">
-        <button class="pill-btn" id="btnStartCloudOTA" style="justify-content:center; background:linear-gradient(135deg,#ffb703,#fb8500); color:#000; font-weight:900; margin-top:4px;" onclick="startSmartCloudOTA()">
-          ☁️ 從雲端一鍵升級 (即時進度條)
+        <input type="hidden" id="cloudOtaUrl" value="https://raw.githubusercontent.com/eric-aicode/aiot/main/Project_10SecChallenge/firmware_10SecChallenge.bin">
+        <button class="pill-btn" id="btnStartCloudOTA" style="width:100%; justify-content:center; background:linear-gradient(135deg,#ffb703,#fb8500); color:#000; font-weight:900; margin-top:4px;" onclick="startSmartCloudOTA()">
+          ☁️ 從 GitHub 雲端一鍵升級 (即時進度條)
         </button>
       </div>
 
@@ -1269,6 +1265,11 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       recordsDrawer.classList.add('open');
     }
     function openWifiDrawer() {
+      if (!isHostUnlocked) {
+        showToast('🔒 觀賽模式已鎖定設定，請先解鎖主控權限！');
+        openUnlockModal();
+        return;
+      }
       closeAllDrawers();
       checkWifiStatus();
       wifiDrawer.classList.add('open');
@@ -1350,12 +1351,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     }
 
     function setCloudUrl(type) {
-      const input = document.getElementById('cloudOtaUrl');
-      if (type === 'drive') {
-        input.value = 'https://drive.google.com/uc?export=download&id=1QwJxZ1gZpncdnnJL5c4IYgl0H-iliAxm';
-      } else {
-        input.value = 'https://raw.githubusercontent.com/eric-aicode/aiot/main/Project_10SecChallenge/firmware_10SecChallenge.bin';
-      }
+      document.getElementById('cloudOtaUrl').value = 'https://raw.githubusercontent.com/eric-aicode/aiot/main/Project_10SecChallenge/firmware_10SecChallenge.bin';
     }
 
     function handleFileChosen(input) {
@@ -2139,7 +2135,6 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     function startCliffGame() {
       if (currentGameMode !== 4) return;
       if (cliffState === 'ACCEL' || cliffState === 'BRAKING') return;
-      if (performance.now() - cliffResetTime < 350) return; // 🛡️ 歸零防連點保護：重回起點 350ms 內忽略過快起跑！
 
       cliffStartTime = performance.now();
       car.x = CAR_START_X;
@@ -2172,8 +2167,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     function brakeCliffGame() {
       if (currentGameMode !== 4) return;
       if (cliffState !== 'ACCEL') return;
-      // 🛡️ 起跑防連點保護：起跑後 300ms 內忽略急煞指令，徹底杜絕連擊！
-      if (performance.now() - cliffStartTime < 300) return;
+      // 僅在起跑後 180ms 內防連點彈跳
+      if (performance.now() - cliffStartTime < 180) return;
 
       cliffState = 'BRAKING';
 
@@ -2195,7 +2190,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       if (cliffState === 'READY' || cliffState === 'STOPPED') {
         startCliffGame();
       } else if (cliffState === 'ACCEL') {
-        if (performance.now() - cliffStartTime < 300) return; // 忽略連擊
+        if (performance.now() - cliffStartTime < 180) return; // 忽略過快連擊
         brakeCliffGame();
       }
     }

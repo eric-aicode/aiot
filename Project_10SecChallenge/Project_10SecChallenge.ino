@@ -410,10 +410,6 @@ void handleActionTrigger() {
   // ---------------- 模式 4：懸崖勒馬極限煞車 (方案 A：第 1 拍狂飆、第 2 拍急煞) ----------------
   else if (currentGameMode == MODE_CLIFF) {
     if (currentState == STATE_READY) {
-      if (now < cooldownUntilMs) {
-        Serial.println("[CLIFF] 歸零重置冷卻防連點中，忽略過快起跑！");
-        return;
-      }
       currentState = STATE_RUNNING;
       startTimeMs = now;
       setLeds(true);
@@ -423,9 +419,8 @@ void handleActionTrigger() {
       Serial.println("[CLIFF] 第 1 拍！油門一拜，朝萬丈懸崖極速狂飆！");
     }
     else if (currentState == STATE_RUNNING) {
-      // 🛡️ 起跑防連點保護：起跑後 300ms 內忽略煞車指令，杜絕實體按鍵彈跳與連擊誤觸！
-      if (now - startTimeMs < 300) {
-        Serial.println("[CLIFF] 起跑防連拍保護中 (300ms)，忽略微秒急煞！");
+      // 僅在起跑後 180ms 內防連點彈跳（避免按鍵觸發當下的機械雜訊誤判為煞車）
+      if (now - startTimeMs < 180) {
         return;
       }
       currentState = STATE_RESULT;
@@ -443,7 +438,6 @@ void handleActionTrigger() {
         Serial.println("[GAME] 1 秒慶祝鎖定中，防連點忽略！");
       } else {
         currentState = STATE_READY;
-        cooldownUntilMs = now + 350; // 歸零後提供 350ms 緩衝防連點，防止同一次拍擊直接觸發起跑！
         playAsyncTone(800, 60);
         broadcastSSE("{\"type\":\"RESET\",\"mode\":4}");
         Serial.println("[CLIFF] 歸零重置！車輛倒車回起點，就緒。");
@@ -769,27 +763,23 @@ void loop() {
     }
   }
 
-  // --------------------------- 🎯 電競級 Press-Release 按鍵引擎 ---------------------------
-  // 必須完完整整地經歷「按下 (Press) ➔ 抬起 (Release)」，才能計下一次！
-  // 按住按鈕不放絕對不累加，杜絕作弊；10ms 極速響應，絕不漏拍！
+  // --------------------------- 🎯 電競級 0ms 瞬發 Press-Release 按鍵引擎 ---------------------------
+  // 按下的瞬間 (Falling Edge) 0ms 零延遲立即響應，毫秒不差！
+  // 抬起時經 8ms 穩定去彈跳，杜絕連擊誤觸；全速狂拍支援 30+ CPS！
   int pinVal = digitalRead(PIN_BUTTON);
 
   if (btnPhysState == BTN_STATE_RELEASED) {
-    // 當前處於放開狀態，等待玩家按下 (Active Low)
+    // 當前處於放開狀態：只要一檢測到 LOW，立即 0ms 觸發！
     if (pinVal == LOW) {
-      if (now - btnStateChangeTime >= BTN_DEBOUNCE_MS) {
-        btnPhysState = BTN_STATE_PRESSED;
-        btnStateChangeTime = now;
-        btnPressStartTime = now;
-        longPressTriggered = false;
-        handleActionTrigger(); // 觸發按下事件！
-      }
-    } else {
+      btnPhysState = BTN_STATE_PRESSED;
       btnStateChangeTime = now;
+      btnPressStartTime = now;
+      longPressTriggered = false;
+      handleActionTrigger(); // ⚡ 零延遲瞬發！
     }
   } else { // btnPhysState == BTN_STATE_PRESSED
-    // 👑 實體大按鈕「長按 1.8 秒自動循環切換模式」
-    if (!longPressTriggered && (now - btnPressStartTime >= 1800)) {
+    // 👑 實體大按鈕長按 1.8 秒切換模式（僅在非競賽運行中才檢查，極速手速狂拍期間絕不干擾）
+    if (!longPressTriggered && (currentState != STATE_RUNNING) && (now - btnPressStartTime >= 1800)) {
       longPressTriggered = true;
       int nextMode = ((int)currentGameMode + 1) % 5;
       currentGameMode = (GameMode)nextMode;
@@ -797,15 +787,10 @@ void loop() {
       tapperHits = 0;
       hasSignaled = false;
 
-      // 清脆升調提示音 🎵 880Hz ➔ 1760Hz
-      playAsyncTone(880, 80);
-      delay(90);
-      playAsyncTone(1760, 160);
-
-      // 閃爍外接與板載 LED
+      // 純非阻塞音效，無 delay()，絕不卡頓主循環！
+      playAsyncTone(1760, 150);
       setLeds(true);
-      delay(60);
-      setLeds(false);
+      buzzerOffTime = now + 150;
 
       String json = "{\"type\":\"RESET\",\"mode\":" + String(currentGameMode) + "}";
       broadcastSSE(json);
@@ -814,16 +799,16 @@ void loop() {
       Serial.printf("[BUTTON] 實體按鈕長按 1.8s 切換模式為: %s\n", modeNames[currentGameMode]);
     }
 
-    // 當前處於按下狀態，必須完全放開 (HIGH) 才能解鎖蓄力！
+    // 必須完全放開 (HIGH) 且穩定 8ms 才能解鎖下一次蓄力！
     if (pinVal == HIGH) {
-      if (now - btnStateChangeTime >= BTN_DEBOUNCE_MS) {
+      if (now - btnStateChangeTime >= 8) {
         btnPhysState = BTN_STATE_RELEASED;
         btnStateChangeTime = now;
         longPressTriggered = false;
         // 成功放開，下次按下即可立刻計次！
       }
     } else {
-      btnStateChangeTime = now; // 依然按著，持續鎖定
+      btnStateChangeTime = now; // 依然按著，持續記錄時間
     }
   }
 }
