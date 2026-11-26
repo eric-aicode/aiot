@@ -117,6 +117,10 @@ ESP8266HTTPUpdateServer httpUpdater;
 WiFiClient sseClients[MAX_SSE_CLIENTS];
 
 // --------------------------- EEPROM Wi-Fi 記憶讀寫 ---------------------------
+unsigned long wifiConnectStartTime = 0;
+bool wifiAttempting = false;
+bool wifiTimedOut = false;
+
 void loadWifiFromEEPROM() {
   EEPROM.begin(sizeof(WifiStorage));
   WifiStorage cfg;
@@ -124,9 +128,12 @@ void loadWifiFromEEPROM() {
   if (cfg.magic == EEPROM_MAGIC && strlen(cfg.ssid) > 0) {
     Serial.printf("[EEPROM] 讀取到已儲存的 Wi-Fi 設定: SSID=%s\n", cfg.ssid);
     WiFi.begin(cfg.ssid, cfg.pass);
+    wifiConnectStartTime = millis();
+    wifiAttempting = true;
+    wifiTimedOut = false;
   } else {
-    Serial.println("[EEPROM] 尚無儲存的 Wi-Fi 紀錄。");
-    WiFi.begin();
+    Serial.println("[EEPROM] 尚無儲存的外部 Wi-Fi 紀錄，專注本機 SoftAP 模式。");
+    wifiAttempting = false;
   }
 }
 
@@ -592,7 +599,7 @@ void setup() {
 
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
-  WiFi.softAP(apName);
+  WiFi.softAP(apName, "", 1); // 固定在 Channel 1，絕不隨外部 Wi-Fi 頻道漂移！
 
   loadWifiFromEEPROM();
 
@@ -618,10 +625,38 @@ void setup() {
   server.on("/api/wifi/connect", HTTP_POST, handleWifiConnect);
   server.on("/api/ota/cloud", HTTP_POST, handleCloudOTA);
 
-  server.on("/generate_204", HTTP_GET, handleRoot);
-  server.on("/fwlink", HTTP_GET, handleRoot);
-  server.on("/hotspot-detect.html", HTTP_GET, handleRoot);
+  // Captive Portal 探測端點：一律 302 重導向至首頁，不在背景 probe 吐 97KB HTML！
+  server.on("/generate_204", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/plain", "");
+  });
+  server.on("/gen_204", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/plain", "");
+  });
+  server.on("/fwlink", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/plain", "");
+  });
+  server.on("/hotspot-detect.html", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/plain", "");
+  });
+  server.on("/canonical.html", HTTP_GET, []() {
+    server.sendHeader("Location", "http://192.168.4.1/", true);
+    server.send(302, "text/plain", "");
+  });
+  server.on("/ncsi.txt", HTTP_GET, []() { server.send(200, "text/plain", "Microsoft NCSI"); });
+  server.on("/connecttest.txt", HTTP_GET, []() { server.send(200, "text/plain", "Microsoft Connect Test"); });
+
   server.onNotFound([]() {
+    String uri = server.uri();
+    // 靜態資源未命中 (如 favicon.ico, .css, .js, .png, .map, /css2) 一律 404，防止反覆傳送 97KB HTML 耗盡 TCP 記憶體！
+    if (uri.endsWith(".ico") || uri.endsWith(".css") || uri.endsWith(".js") ||
+        uri.endsWith(".png") || uri.endsWith(".map") || uri.endsWith(".jpg") || uri.startsWith("/css2")) {
+      server.send(404, "text/plain", "Not Found");
+      return;
+    }
     server.sendHeader("Location", "http://192.168.4.1/", true);
     server.send(302, "text/plain", "");
   });
@@ -644,6 +679,20 @@ void loop() {
   updateLeds();
 
   unsigned long now = millis();
+
+  // 外部 Wi-Fi 連線逾時保護：若 7 秒內未連上外部 Wi-Fi (例如換環境至學校)，自動停止後台搜尋
+  // 避免 STA 後台頻道跳躍 (Channel Hopping) 造成 SoftAP 熱點封包遺失或瞬斷！
+  if (wifiAttempting && !wifiTimedOut) {
+    if (WiFi.status() == WL_CONNECTED) {
+      wifiAttempting = false;
+      Serial.printf("[WIFI] 成功連線外部 Wi-Fi，區網 IP: %s\n", WiFi.localIP().toString().c_str());
+    } else if (now - wifiConnectStartTime >= 7000) {
+      wifiTimedOut = true;
+      wifiAttempting = false;
+      WiFi.disconnect(false);
+      Serial.println("[WIFI] 外部 Wi-Fi 連線逾時 (非原本環境)，已停止後台搜尋以鎖定本機熱點穩定！");
+    }
+  }
 
   // 手速狂拍模式：倒數 10 秒時間到自動結算！
   if (currentGameMode == MODE_SPEED_TAPPER && currentState == STATE_RUNNING) {
