@@ -101,10 +101,10 @@ enum ButtonPhysicalState {
   BTN_STATE_PRESSED     // 按鍵已按下並計次 (必須等完全放開才能記下一次！)
 };
 ButtonPhysicalState btnPhysState = BTN_STATE_RELEASED;
-unsigned long btnStateChangeTime = 0;
+unsigned long lastPressTime = 0;
 unsigned long btnPressStartTime = 0;
+unsigned long highStartTime = 0;
 bool longPressTriggered = false;
-const unsigned long BTN_DEBOUNCE_MS = 10; // 10ms 超高速電競級去彈跳 (可支援高達 25+ CPS)
 
 char apName[32] = "Timer10s";
 char chipIdHex[8] = "0000";
@@ -209,7 +209,7 @@ void broadcastSSE(const String& payload) {
     if (sseClients[i] && sseClients[i].connected()) {
       sseClients[i].setNoDelay(true); // 關閉 TCP Nagle 演算法，禁止封包緩衝積累！
       sseClients[i].print(msg);
-      sseClients[i].flush();          // 強制即刻推射出去，每一擊即時同步！
+      // 不在此處呼叫阻塞型 flush()，交由 TCP 協議棧原生發送，確保 loop() 與按鍵零卡頓！
     }
   }
 }
@@ -452,7 +452,15 @@ void handleRoot() {
 }
 
 void handleVirtualButton() {
-  handleActionTrigger();
+  int count = 1;
+  if (server.hasArg("count")) {
+    count = server.arg("count").toInt();
+    if (count < 1) count = 1;
+    if (count > 50) count = 50;
+  }
+  for (int i = 0; i < count; i++) {
+    handleActionTrigger();
+  }
   server.send(200, "text/plain", "OK");
 }
 
@@ -765,17 +773,20 @@ void loop() {
 
   // --------------------------- 🎯 電競級 0ms 瞬發 Press-Release 按鍵引擎 ---------------------------
   // 按下的瞬間 (Falling Edge) 0ms 零延遲立即響應，毫秒不差！
-  // 抬起時經 8ms 穩定去彈跳，杜絕連擊誤觸；全速狂拍支援 30+ CPS！
+  // 採非對稱電競鎖定防抖 (12ms Lockout + 2ms Release)，全速狂拍支援 50+ CPS！
   int pinVal = digitalRead(PIN_BUTTON);
 
   if (btnPhysState == BTN_STATE_RELEASED) {
-    // 當前處於放開狀態：只要一檢測到 LOW，立即 0ms 觸發！
+    // 當前處於放開狀態：只要檢測到 LOW 且距上次按下 >= 12ms (防金屬微動彈跳)，立即 0ms 觸發！
     if (pinVal == LOW) {
-      btnPhysState = BTN_STATE_PRESSED;
-      btnStateChangeTime = now;
-      btnPressStartTime = now;
-      longPressTriggered = false;
-      handleActionTrigger(); // ⚡ 零延遲瞬發！
+      if (now - lastPressTime >= 12) {
+        btnPhysState = BTN_STATE_PRESSED;
+        lastPressTime = now;
+        btnPressStartTime = now;
+        highStartTime = 0;
+        longPressTriggered = false;
+        handleActionTrigger(); // ⚡ 零延遲瞬發！
+      }
     }
   } else { // btnPhysState == BTN_STATE_PRESSED
     // 👑 實體大按鈕長按 1.8 秒切換模式（僅在非競賽運行中才檢查，極速手速狂拍期間絕不干擾）
@@ -799,16 +810,20 @@ void loop() {
       Serial.printf("[BUTTON] 實體按鈕長按 1.8s 切換模式為: %s\n", modeNames[currentGameMode]);
     }
 
-    // 必須完全放開 (HIGH) 且穩定 8ms 才能解鎖下一次蓄力！
+    // 釋放判定：手速狂拍模式只需放開 2ms，其他模式 5ms；絕不因微動微秒彈跳重置計時！
+    unsigned long releaseThreshold = (currentGameMode == MODE_SPEED_TAPPER) ? 2 : 5;
     if (pinVal == HIGH) {
-      if (now - btnStateChangeTime >= 8) {
+      if (highStartTime == 0) highStartTime = now;
+      if (now - highStartTime >= releaseThreshold) {
         btnPhysState = BTN_STATE_RELEASED;
-        btnStateChangeTime = now;
+        highStartTime = 0;
         longPressTriggered = false;
-        // 成功放開，下次按下即可立刻計次！
       }
     } else {
-      btnStateChangeTime = now; // 依然按著，持續記錄時間
+      // 只有在按下 8ms 之後若依然是 LOW，才確定玩家依然按著
+      if (now - lastPressTime >= 8) {
+        highStartTime = 0;
+      }
     }
   }
 }

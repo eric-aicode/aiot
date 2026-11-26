@@ -284,6 +284,11 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       cursor: pointer;
       font-family: 'Orbitron', 'Impact', sans-serif;
       text-align: center;
+      transition: transform 0.04s ease-out;
+      will-change: transform;
+    }
+    .single-huge-digits.hit-pulse {
+      transform: scale(1.06) translateZ(0);
     }
 
     /* 4 款零震動字體樣式 */
@@ -489,7 +494,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
   </div>
 
   <!-- 中央巨幕舞台 (支援平板 pointerdown 0ms 極速觸發與防誤觸) -->
-  <main class="giant-arena" id="arenaMain" onpointerdown="handleTapScreen(event)" onclick="handleTapScreen(event)">
+  <main class="giant-arena" id="arenaMain" onpointerdown="handleTapScreen(event)">
     <div class="target-banner" id="targetBanner">
       🎯 目標時間 <strong>10.000 秒</strong>
     </div>
@@ -1021,15 +1026,55 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     }
 
     let lastTapTimestamp = 0;
+    let pendingTapCount = 0;
+    let isSendingButton = false;
+
+    function triggerHitPulse() {
+      boxSingleDigits.classList.remove('hit-pulse');
+      void boxSingleDigits.offsetWidth;
+      boxSingleDigits.classList.add('hit-pulse');
+    }
+
+    function sendButtonTrigger(count = 1) {
+      if (currentGameMode !== 1) {
+        fetch('/api/button', { method: 'POST' }).catch(()=>{});
+        return;
+      }
+      // 手速狂拍模式：智慧佇列防堵塞批次同步！
+      pendingTapCount += count;
+      if (!isSendingButton) {
+        flushButtonQueue();
+      }
+    }
+
+    function flushButtonQueue() {
+      if (pendingTapCount <= 0) {
+        isSendingButton = false;
+        return;
+      }
+      isSendingButton = true;
+      const sendCount = pendingTapCount;
+      pendingTapCount = 0;
+      fetch('/api/button?count=' + sendCount, { method: 'POST' })
+        .then(() => {
+          isSendingButton = false;
+          if (pendingTapCount > 0) flushButtonQueue();
+        })
+        .catch(() => {
+          isSendingButton = false;
+        });
+    }
+
     function handleTapScreen(e) {
       if (e) {
-        // 若使用者點擊的是按鈕、輸入框、抽屜等，不觸發螢幕大按鈕
         if (e.target && e.target.closest && e.target.closest('button, input, select, a, .drawer-content, .drawer-overlay, .btn-collapse')) return;
         if (e.type === 'pointerdown' && e.pointerType === 'mouse' && e.button !== 0) return;
+        if (e.cancelable) e.preventDefault(); // 阻止平板合成二次 click 與手勢放大
       }
       const now = performance.now();
-      // 防止行動瀏覽器 pointerdown + click 產生雙重觸發 (小於 80ms 視為同一次觸碰)
-      if (now - lastTapTimestamp < 80) return;
+      // 手速狂拍模式支援 60+ CPS (間隔僅 15ms)；其他模式 50ms 防抖
+      const minInterval = (currentGameMode === 1) ? 15 : 50;
+      if (now - lastTapTimestamp < minInterval) return;
       lastTapTimestamp = now;
 
       if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -1037,12 +1082,36 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         showToast('🔒 觀賽模式保護中，請點擊上方【🔒 觀戰模式】解鎖！');
         return;
       }
-      if (currentGameMode === 3) {
+
+      if (currentGameMode === 1) {
+        // ⚡ 模式 1 手速狂拍：0ms 樂觀 UI 即刻計次 + 音效 + 視覺彈跳！
+        if (currentState === STATE_READY) {
+          currentState = STATE_RUNNING;
+          localStartTime = performance.now();
+          currentHits = 1;
+          boxSingleDigits.innerText = currentHits;
+          boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' running';
+          bottomHint.className = 'bottom-hint';
+          bottomHint.innerHTML = '<span>⚡ 倒數 10 秒！火速狂拍按鍵！！！</span>';
+          runLocalClock();
+          playTone(1000, 'sine', 0.04, 0.3);
+          triggerHitPulse();
+          sendButtonTrigger(1);
+          return;
+        } else if (currentState === STATE_RUNNING) {
+          currentHits++;
+          boxSingleDigits.innerText = currentHits;
+          playTone(1000 + Math.min(currentHits * 12, 850), 'sine', 0.025, 0.2);
+          triggerHitPulse();
+          sendButtonTrigger(1);
+          return;
+        }
+      } else if (currentGameMode === 3) {
         dinoJump();
       } else if (currentGameMode === 4) {
         handleCliffTap();
       }
-      fetch('/api/button', { method: 'POST' }).catch(()=>{});
+      sendButtonTrigger(1);
     }
 
     // 電腦端鍵盤支援：空白鍵或 Enter 鍵等同點擊大按鈕
@@ -1101,7 +1170,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
           bottomHint.className = 'bottom-hint';
           bottomHint.innerHTML = '<span>⚡ 計時狂飆中！第 2 下拍擊定格！</span>';
         } else if (currentGameMode === 1) {
-          currentHits = data.h || 1;
+          currentHits = Math.max(currentHits, data.h || 1);
           boxSingleDigits.innerText = currentHits;
           boxSingleDigits.className = 'single-huge-digits ' + FONTS[fontIndex].id + ' running';
           bottomHint.className = 'bottom-hint';
@@ -1138,9 +1207,11 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         playTone(1800, 'square', 0.15, 0.6);
       }
       else if (data.type === 'HIT') {
-        currentHits = (data.h !== undefined) ? data.h : data.hits;
+        const h = (data.h !== undefined) ? data.h : data.hits;
+        currentHits = Math.max(currentHits, h);
         boxSingleDigits.innerText = currentHits;
-        playTone(1000 + Math.min(currentHits * 15, 800), 'sine', 0.03, 0.2);
+        playTone(1000 + Math.min(currentHits * 12, 850), 'sine', 0.025, 0.2);
+        triggerHitPulse();
       }
       else if (data.type === 'STOP') {
         currentState = STATE_RESULT;
@@ -1184,7 +1255,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         }
         else if (currentGameMode === 1) {
           // 模式 1 手速結算
-          const hits = data.hits;
+          const hits = (data.hits !== undefined) ? Math.max(currentHits, data.hits) : currentHits;
           const cps = (data.cps || (hits / 10.0)).toFixed(1);
           const rank = data.rank;
           boxSingleDigits.innerText = hits;
