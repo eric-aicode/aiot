@@ -102,7 +102,12 @@ enum ButtonPhysicalState {
 };
 ButtonPhysicalState btnPhysState = BTN_STATE_RELEASED;
 unsigned long btnStateChangeTime = 0;
+unsigned long btnPressStartTime = 0;
+bool longPressTriggered = false;
 const unsigned long BTN_DEBOUNCE_MS = 10; // 10ms 超高速電競級去彈跳 (可支援高達 25+ CPS)
+
+char apName[32] = "Timer10s";
+char chipIdHex[8] = "0000";
 
 // LED & 蜂鳴器非阻塞控制
 unsigned long buzzerOffTime = 0;
@@ -503,6 +508,8 @@ void handleWifiStatus() {
   json += "\"ip\":\"" + (WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : "") + "\",";
   json += "\"rssi\":" + String(WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0) + ",";
   json += "\"ap_ip\":\"" + WiFi.softAPIP().toString() + "\",";
+  json += "\"ap_name\":\"" + String(apName) + "\",";
+  json += "\"chip_id\":\"" + String(chipIdHex) + "\",";
   json += "\"mdns\":\"timer10s.local\"";
   json += "}";
   server.send(200, "application/json", json);
@@ -595,8 +602,8 @@ void setup() {
 
   uint32_t chipId = ESP.getChipId();
   randomSeed(micros() ^ ESP.getCycleCount());
-  char apName[32];
-  snprintf(apName, sizeof(apName), "Timer10s_%04X", (uint16_t)(chipId & 0xFFFF));
+  snprintf(chipIdHex, sizeof(chipIdHex), "%04X", (uint16_t)(chipId & 0xFFFF));
+  snprintf(apName, sizeof(apName), "Timer10s_%s", chipIdHex);
 
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
@@ -763,17 +770,46 @@ void loop() {
       if (now - btnStateChangeTime >= BTN_DEBOUNCE_MS) {
         btnPhysState = BTN_STATE_PRESSED;
         btnStateChangeTime = now;
+        btnPressStartTime = now;
+        longPressTriggered = false;
         handleActionTrigger(); // 觸發按下事件！
       }
     } else {
       btnStateChangeTime = now;
     }
   } else { // btnPhysState == BTN_STATE_PRESSED
+    // 👑 實體大按鈕「長按 1.8 秒自動循環切換模式」
+    if (!longPressTriggered && (now - btnPressStartTime >= 1800)) {
+      longPressTriggered = true;
+      int nextMode = ((int)currentGameMode + 1) % 5;
+      currentGameMode = (GameMode)nextMode;
+      currentState = STATE_READY;
+      tapperHits = 0;
+      hasSignaled = false;
+
+      // 清脆升調提示音 🎵 880Hz ➔ 1760Hz
+      playAsyncTone(880, 80);
+      delay(90);
+      playAsyncTone(1760, 160);
+
+      // 閃爍外接與板載 LED
+      setLeds(true);
+      delay(60);
+      setLeds(false);
+
+      String json = "{\"type\":\"RESET\",\"mode\":" + String(currentGameMode) + "}";
+      broadcastSSE(json);
+
+      const char* modeNames[] = {"十秒停秒", "十秒手速", "閃電對決", "離線小恐龍", "懸崖勒馬"};
+      Serial.printf("[BUTTON] 實體按鈕長按 1.8s 切換模式為: %s\n", modeNames[currentGameMode]);
+    }
+
     // 當前處於按下狀態，必須完全放開 (HIGH) 才能解鎖蓄力！
     if (pinVal == HIGH) {
       if (now - btnStateChangeTime >= BTN_DEBOUNCE_MS) {
         btnPhysState = BTN_STATE_RELEASED;
         btnStateChangeTime = now;
+        longPressTriggered = false;
         // 成功放開，下次按下即可立刻計次！
       }
     } else {

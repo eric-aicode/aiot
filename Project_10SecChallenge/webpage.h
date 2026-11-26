@@ -145,6 +145,38 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       border-color: var(--cyan);
       color: #fff;
     }
+    .btn-lock {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--red);
+      color: #fca5a5;
+    }
+    .btn-lock.unlocked {
+      background: rgba(0, 255, 135, 0.15);
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .spectator-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(30px);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--gold);
+      color: var(--text);
+      padding: 10px 22px;
+      border-radius: 30px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.8);
+      z-index: 1000;
+      pointer-events: none;
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .spectator-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
     .btn-fs {
       background: linear-gradient(135deg, rgba(255,183,3,0.35) 0%, rgba(251,133,0,0.35) 100%);
       border-color: var(--gold);
@@ -428,6 +460,9 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
   <!-- 頂部懸浮工具列 -->
   <header class="floating-toolbar" id="toolbar">
     <div class="toolbar-left">
+      <button class="pill-btn btn-lock" id="btnLock" onclick="handleLockToggle()" title="點擊輸入密碼解鎖主控權限">
+        🔒 觀戰模式
+      </button>
       <button class="pill-btn btn-mode" id="btnMode" onclick="cycleGameMode()">
         🎮 模式: ⏱️ 十秒節拍停秒
       </button>
@@ -594,6 +629,36 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     </div>
   </div>
 
+  <!-- 浮動抽屜 3：主控解鎖彈窗 -->
+  <div class="drawer-overlay" id="unlockModal" onclick="closeAllDrawers(event)">
+    <div class="drawer-content" onclick="event.stopPropagation()" style="max-width:380px; max-height:85vh; padding:22px;">
+      <div class="drawer-header">
+        <div class="drawer-title" style="font-size:1.15rem;">🔒 解鎖主控操作權限</div>
+        <button class="pill-btn" onclick="closeAllDrawers()">✕ 關閉</button>
+      </div>
+      <p style="font-size:0.86rem; color:var(--text); line-height:1.5; margin-top:8px;">
+        目前處於<strong>「🔒 觀賽模式」</strong>以防誤觸。若您是選手或裁判，請輸入本機 <strong>MAC 末四碼</strong> 解鎖主控權限：
+      </p>
+      <div style="background:rgba(0,0,0,0.45); border:1px dashed var(--border); border-radius:8px; padding:10px; margin:12px 0; font-size:0.8rem; color:var(--muted);">
+        💡 <strong>密碼提示：</strong> 密碼即為熱點名稱後四碼。<br>
+        例如連線到 <code style="color:var(--cyan); font-weight:700;" id="unlockApHint">Timer10s_XXXX</code>，密碼即為 <strong style="color:var(--gold);" id="unlockPassHint">XXXX</strong>。
+      </div>
+      <div class="form-group">
+        <span class="form-label" style="text-align:center;">請輸入 4 碼主控密碼</span>
+        <input type="text" class="form-input" id="unlockPassInput" maxlength="4" placeholder="例如：A0C8" style="text-align:center; font-family:'Orbitron', monospace; font-size:1.4rem; letter-spacing:4px; text-transform:uppercase;" onkeydown="if(event.key==='Enter')confirmUnlockHost()">
+      </div>
+      <div id="unlockErrorMsg" style="color:var(--red); font-size:0.82rem; font-weight:700; text-align:center; display:none; margin-bottom:8px;">
+        ❌ 密碼錯誤，請確認熱點名稱末四碼！
+      </div>
+      <div style="display:flex; gap:10px; margin-top:8px;">
+        <button class="pill-btn" style="flex:1; justify-content:center;" onclick="closeAllDrawers()">取消</button>
+        <button class="pill-btn" style="flex:1; justify-content:center; background:linear-gradient(135deg,#00f2fe,#4facfe); color:#000; font-weight:900;" onclick="confirmUnlockHost()">🔓 確認解鎖</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="spectator-toast" id="spectatorToast"></div>
+
   <script>
     const STATE_READY = 0;
     const STATE_RUNNING = 1;
@@ -614,6 +679,80 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     let soundEnabled = true;
     let uiVisible = true;
     let currentHits = 0;
+
+    let deviceChipId = '';
+    let isHostUnlocked = sessionStorage.getItem('timer10s_unlocked') === 'true';
+    let toastTimer = null;
+
+    function showToast(msg) {
+      const t = document.getElementById('spectatorToast');
+      if (!t) return;
+      t.innerText = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        t.classList.remove('show');
+      }, 2600);
+    }
+
+    function updateLockUI() {
+      const btn = document.getElementById('btnLock');
+      if (!btn) return;
+      if (isHostUnlocked) {
+        btn.innerHTML = '🔓 主控模式';
+        btn.className = 'pill-btn btn-lock unlocked';
+        btn.title = '點擊切換為 🔒 觀戰模式（鎖定螢幕觸控）';
+      } else {
+        btn.innerHTML = '🔒 觀戰模式';
+        btn.className = 'pill-btn btn-lock';
+        btn.title = '點擊輸入密碼解鎖 🔓 主控操作權限';
+      }
+    }
+
+    function handleLockToggle() {
+      if (isHostUnlocked) {
+        if (confirm('確定要切換回【🔒 觀戰模式】嗎？\n切換後此螢幕觸控將被鎖定，可防止觀看時誤觸。')) {
+          isHostUnlocked = false;
+          sessionStorage.removeItem('timer10s_unlocked');
+          updateLockUI();
+          showToast('已切換為 🔒 觀戰模式（螢幕已防誤觸鎖定）');
+        }
+      } else {
+        openUnlockModal();
+      }
+    }
+
+    function openUnlockModal() {
+      closeAllDrawers();
+      const modal = document.getElementById('unlockModal');
+      const input = document.getElementById('unlockPassInput');
+      const err = document.getElementById('unlockErrorMsg');
+      if (err) err.style.display = 'none';
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 200);
+      }
+      if (modal) modal.classList.add('open');
+    }
+
+    function confirmUnlockHost() {
+      const input = document.getElementById('unlockPassInput');
+      const err = document.getElementById('unlockErrorMsg');
+      const entered = (input ? input.value : '').trim().toUpperCase();
+
+      if (deviceChipId && entered === deviceChipId.toUpperCase()) {
+        isHostUnlocked = true;
+        sessionStorage.setItem('timer10s_unlocked', 'true');
+        closeAllDrawers();
+        updateLockUI();
+        playTone(1200, 'sine', 0.1, 0.4);
+        setTimeout(() => playTone(1800, 'sine', 0.2, 0.5), 90);
+        showToast('🎉 解鎖成功！已取得主控操作權限！');
+      } else {
+        if (err) err.style.display = 'block';
+        playTone(200, 'sawtooth', 0.25, 0.6);
+      }
+    }
 
     const FONTS = [
       { id: 'font-sci-fi', name: '賽博科技' },
@@ -670,8 +809,13 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       applyFont();
     }
 
-    // 輪流切換 4 種遊戲模式
+    // 輪流切換 5 種遊戲模式 (需主控權限)
     function cycleGameMode() {
+      if (!isHostUnlocked) {
+        showToast('🔒 觀賽模式已鎖定模式切換，請先輸入密碼解鎖！');
+        openUnlockModal();
+        return;
+      }
       const nextMode = (currentGameMode + 1) % MODES.length;
       fetch('/api/mode?set=' + nextMode, { method: 'POST' })
         .then(() => switchUIMode(nextMode))
@@ -884,6 +1028,10 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
     function handleTapScreen() {
       if (audioCtx.state === 'suspended') audioCtx.resume();
+      if (!isHostUnlocked) {
+        showToast('🔒 觀賽模式保護中，請點擊上方【🔒 觀戰模式】解鎖！');
+        return;
+      }
       if (currentGameMode === 3) {
         dinoJump();
       } else if (currentGameMode === 4) {
@@ -1132,12 +1280,21 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     function closeAllDrawers() {
       recordsDrawer.classList.remove('open');
       wifiDrawer.classList.remove('open');
+      const unlockModal = document.getElementById('unlockModal');
+      if (unlockModal) unlockModal.classList.remove('open');
     }
 
     function checkWifiStatus() {
       fetch('/api/wifi/status')
         .then(r => r.json())
         .then(d => {
+          if (d.chip_id) {
+            deviceChipId = d.chip_id.toUpperCase();
+            const apHint = document.getElementById('unlockApHint');
+            const passHint = document.getElementById('unlockPassHint');
+            if (apHint) apHint.innerText = d.ap_name || `Timer10s_${deviceChipId}`;
+            if (passHint) passHint.innerText = deviceChipId;
+          }
           const box = document.getElementById('wifiStatusBox');
           if (d.connected) {
             btnWifi.classList.add('online');
@@ -2587,6 +2744,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
     window.onload = function() {
       applyFont();
+      updateLockUI();
       checkWifiStatus();
       setupSSE();
     };
