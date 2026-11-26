@@ -636,19 +636,15 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         <div class="drawer-title" style="font-size:1.15rem;">🔒 解鎖主控操作權限</div>
         <button class="pill-btn" onclick="closeAllDrawers()">✕ 關閉</button>
       </div>
-      <p style="font-size:0.86rem; color:var(--text); line-height:1.5; margin-top:8px;">
-        目前處於<strong>「🔒 觀賽模式」</strong>以防誤觸。若您是選手或裁判，請輸入本機 <strong>MAC 末四碼</strong> 解鎖主控權限：
+      <p style="font-size:0.88rem; color:var(--text); line-height:1.5; margin:12px 0 16px 0;">
+        目前處於<strong>「🔒 觀賽模式」</strong>以防誤觸。若要進行觸控操作或切換遊戲模式，請輸入授權密碼：
       </p>
-      <div style="background:rgba(0,0,0,0.45); border:1px dashed var(--border); border-radius:8px; padding:10px; margin:12px 0; font-size:0.8rem; color:var(--muted);">
-        💡 <strong>密碼提示：</strong> 密碼即為熱點名稱後四碼。<br>
-        例如連線到 <code style="color:var(--cyan); font-weight:700;" id="unlockApHint">Timer10s_XXXX</code>，密碼即為 <strong style="color:var(--gold);" id="unlockPassHint">XXXX</strong>。
-      </div>
       <div class="form-group">
-        <span class="form-label" style="text-align:center;">請輸入 4 碼主控密碼</span>
-        <input type="text" class="form-input" id="unlockPassInput" maxlength="4" placeholder="例如：A0C8" style="text-align:center; font-family:'Orbitron', monospace; font-size:1.4rem; letter-spacing:4px; text-transform:uppercase;" onkeydown="if(event.key==='Enter')confirmUnlockHost()">
+        <span class="form-label" style="text-align:center;">請輸入主控密碼</span>
+        <input type="text" class="form-input" id="unlockPassInput" maxlength="4" placeholder="請輸入 4 碼密碼" style="text-align:center; font-family:'Orbitron', monospace; font-size:1.4rem; letter-spacing:4px; text-transform:uppercase;" onkeydown="if(event.key==='Enter')confirmUnlockHost()">
       </div>
       <div id="unlockErrorMsg" style="color:var(--red); font-size:0.82rem; font-weight:700; text-align:center; display:none; margin-bottom:8px;">
-        ❌ 密碼錯誤，請確認熱點名稱末四碼！
+        ❌ 密碼錯誤，請重新輸入！
       </div>
       <div style="display:flex; gap:10px; margin-top:8px;">
         <button class="pill-btn" style="flex:1; justify-content:center;" onclick="closeAllDrawers()">取消</button>
@@ -1290,10 +1286,6 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         .then(d => {
           if (d.chip_id) {
             deviceChipId = d.chip_id.toUpperCase();
-            const apHint = document.getElementById('unlockApHint');
-            const passHint = document.getElementById('unlockPassHint');
-            if (apHint) apHint.innerText = d.ap_name || `Timer10s_${deviceChipId}`;
-            if (passHint) passHint.innerText = deviceChipId;
           }
           const box = document.getElementById('wifiStatusBox');
           if (d.connected) {
