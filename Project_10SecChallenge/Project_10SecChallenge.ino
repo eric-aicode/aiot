@@ -103,7 +103,7 @@ enum ButtonPhysicalState {
 ButtonPhysicalState btnPhysState = BTN_STATE_RELEASED;
 unsigned long lastPressTime = 0;
 unsigned long btnPressStartTime = 0;
-unsigned long highStartTime = 0;
+unsigned long btnReleaseStartTime = 0;
 bool longPressTriggered = false;
 
 char apName[32] = "Timer10s";
@@ -278,6 +278,10 @@ void handleActionTrigger() {
       Serial.println("[TIME-LORD] 計時啟動狂飆！");
     }
     else if (currentState == STATE_RUNNING) {
+      // 🛡️ 開局 200ms 內防機械彈跳連擊直接定格！
+      if (now - startTimeMs < 200) {
+        return;
+      }
       currentState = STATE_RESULT;
       stopTimeMs = now;
       unsigned long elapsed = stopTimeMs - startTimeMs;
@@ -343,6 +347,7 @@ void handleActionTrigger() {
   else if (currentGameMode == MODE_LIGHTNING) {
     if (currentState == STATE_READY) {
       currentState = STATE_RUNNING;
+      startTimeMs = now; // 記錄起跑時間
       signalTriggerTimeMs = now + random(2500, 6000);
       hasSignaled = false;
       signalStartTimeMs = 0;
@@ -354,6 +359,10 @@ void handleActionTrigger() {
       Serial.println("[LIGHTNING] 屏息凝神！隨機信號準備中 (2.5~6.0s)...");
     }
     else if (currentState == STATE_RUNNING) {
+      // 🛡️ 開局 250ms 內防彈跳連擊誤判走火搶拍！
+      if (now - startTimeMs < 250) {
+        return;
+      }
       // 邊界容差防卡死：若剛好在信號時間到達當下按下，立即結算信號生效！
       if (!hasSignaled && now >= signalTriggerTimeMs) {
         hasSignaled = true;
@@ -419,8 +428,8 @@ void handleActionTrigger() {
       Serial.println("[CLIFF] 第 1 拍！油門一拜，朝萬丈懸崖極速狂飆！");
     }
     else if (currentState == STATE_RUNNING) {
-      // 僅在起跑後 180ms 內防連點彈跳（避免按鍵觸發當下的機械雜訊誤判為煞車）
-      if (now - startTimeMs < 180) {
+      // 🛡️ 僅在起跑後 250ms 內防連點彈跳（避免按鍵觸發當下的機械雜訊誤判為煞車）
+      if (now - startTimeMs < 250) {
         return;
       }
       currentState = STATE_RESULT;
@@ -773,17 +782,20 @@ void loop() {
 
   // --------------------------- 🎯 電競級 0ms 瞬發 Press-Release 按鍵引擎 ---------------------------
   // 按下的瞬間 (Falling Edge) 0ms 零延遲立即響應，毫秒不差！
-  // 採非對稱電競鎖定防抖 (12ms Lockout + 2ms Release)，全速狂拍支援 50+ CPS！
+  // 手速模式 (Mode 1)：鎖定 25ms (支援高達 40 CPS)，放開連續保持 8ms
+  // 一般模式 (Mode 0, 2, 3, 4)：鎖定 60ms，放開連續保持 18ms，徹底根除任何連擊彈跳！
   int pinVal = digitalRead(PIN_BUTTON);
+  unsigned long lockoutMs = (currentGameMode == MODE_SPEED_TAPPER) ? 25 : 60;
+  unsigned long releaseMs = (currentGameMode == MODE_SPEED_TAPPER) ? 8 : 18;
 
   if (btnPhysState == BTN_STATE_RELEASED) {
-    // 當前處於放開狀態：只要檢測到 LOW 且距上次按下 >= 12ms (防金屬微動彈跳)，立即 0ms 觸發！
+    // 當前處於放開狀態：只要檢測到 LOW 且距上次按下 >= lockoutMs，立即 0ms 觸發！
     if (pinVal == LOW) {
-      if (now - lastPressTime >= 12) {
+      if (now - lastPressTime >= lockoutMs) {
         btnPhysState = BTN_STATE_PRESSED;
         lastPressTime = now;
         btnPressStartTime = now;
-        highStartTime = 0;
+        btnReleaseStartTime = 0;
         longPressTriggered = false;
         handleActionTrigger(); // ⚡ 零延遲瞬發！
       }
@@ -810,20 +822,18 @@ void loop() {
       Serial.printf("[BUTTON] 實體按鈕長按 1.8s 切換模式為: %s\n", modeNames[currentGameMode]);
     }
 
-    // 釋放判定：手速狂拍模式只需放開 2ms，其他模式 5ms；絕不因微動微秒彈跳重置計時！
-    unsigned long releaseThreshold = (currentGameMode == MODE_SPEED_TAPPER) ? 2 : 5;
+    // 嚴格釋放確認：必須完全放開連續保持 HIGH 達 releaseMs，任何 LOW 都會重置釋放計時！
     if (pinVal == HIGH) {
-      if (highStartTime == 0) highStartTime = now;
-      if (now - highStartTime >= releaseThreshold) {
+      if (btnReleaseStartTime == 0) {
+        btnReleaseStartTime = now;
+      }
+      if (now - btnReleaseStartTime >= releaseMs) {
         btnPhysState = BTN_STATE_RELEASED;
-        highStartTime = 0;
+        btnReleaseStartTime = 0;
         longPressTriggered = false;
       }
     } else {
-      // 只有在按下 8ms 之後若依然是 LOW，才確定玩家依然按著
-      if (now - lastPressTime >= 8) {
-        highStartTime = 0;
-      }
+      btnReleaseStartTime = 0;
     }
   }
 }

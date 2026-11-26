@@ -1072,8 +1072,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         if (e.cancelable) e.preventDefault(); // 阻止平板合成二次 click 與手勢放大
       }
       const now = performance.now();
-      // 手速狂拍模式支援 60+ CPS (間隔僅 15ms)；其他模式 50ms 防抖
-      const minInterval = (currentGameMode === 1) ? 15 : 50;
+      // 手速狂拍模式支援 40 CPS (間隔 25ms)；其他遊戲模式 100ms 嚴格防抖
+      const minInterval = (currentGameMode === 1) ? 25 : 100;
       if (now - lastTapTimestamp < minInterval) return;
       lastTapTimestamp = now;
 
@@ -1083,7 +1083,12 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         return;
       }
 
-      if (currentGameMode === 1) {
+      if (currentGameMode === 0) {
+        // ⏱️ 十秒停秒：起跑 200ms 內防雙擊誤定格
+        if (currentState === STATE_RUNNING && (performance.now() - localStartTime < 200)) {
+          return;
+        }
+      } else if (currentGameMode === 1) {
         // ⚡ 模式 1 手速狂拍：0ms 樂觀 UI 即刻計次 + 音效 + 視覺彈跳！
         if (currentState === STATE_READY) {
           currentState = STATE_RUNNING;
@@ -1109,6 +1114,10 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       } else if (currentGameMode === 3) {
         dinoJump();
       } else if (currentGameMode === 4) {
+        // 🏎️ 懸崖勒馬：起跑 250ms 內防雙擊誤急煞
+        if (cliffState === 'ACCEL' && (performance.now() - cliffStartTime < 250)) {
+          return;
+        }
         handleCliffTap();
       }
       sendButtonTrigger(1);
@@ -2284,7 +2293,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       if (cliffState === 'READY' || cliffState === 'STOPPED') {
         startCliffGame();
       } else if (cliffState === 'ACCEL') {
-        if (performance.now() - cliffStartTime < 180) return; // 忽略過快連擊
+        if (performance.now() - cliffStartTime < 250) return; // 忽略過快連擊 (開跑 250ms 防線)
         brakeCliffGame();
       }
     }
