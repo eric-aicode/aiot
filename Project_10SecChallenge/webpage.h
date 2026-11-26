@@ -478,10 +478,10 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
     <!-- 視圖 4：🏎️ 懸崖勒馬極限煞車 (Cliff Brake Challenge) -->
     <div id="boxCliff" style="display:none; width:100%; max-width:820px; flex-direction:column; align-items:center; gap:8px;">
-      <div style="width:100%; display:flex; justify-content:space-between; align-items:center; font-family:'Share Tech Mono', 'Courier New', monospace; font-size:clamp(0.95rem, 2.2vw, 1.35rem); font-weight:700; color:var(--muted); padding:0 8px;">
-        <span>🏎️ 車速: <strong id="cliffSpeedDisplay" style="color:var(--gold); font-family:'Orbitron';">0</strong> km/h</span>
-        <span style="color:var(--text); font-weight:800;" id="cliffStatusBanner">第 1 拍起跑狂飆 · 第 2 拍死命急煞！</span>
-        <span>🏆 最佳: <strong id="cliffBestDisplay" style="color:var(--cyan); font-family:'Orbitron';">--</strong></span>
+      <div style="width:100%; display:grid; grid-template-columns:140px 1fr 140px; align-items:center; font-family:'Share Tech Mono', 'Courier New', monospace; font-size:clamp(0.9rem, 2vw, 1.25rem); font-weight:700; color:var(--muted); padding:0 8px;">
+        <span style="text-align:left;">🏎️ 車速: <strong id="cliffSpeedDisplay" style="color:var(--gold); font-family:'Share Tech Mono', monospace; font-variant-numeric:tabular-nums; display:inline-block; min-width:40px; text-align:right;">0</strong> km/h</span>
+        <span style="text-align:center; color:var(--text); font-weight:800; white-space:nowrap; overflow:hidden;" id="cliffStatusBanner">第 1 拍起跑狂飆 · 第 2 拍死命急煞！</span>
+        <span style="text-align:right;">🏆 最佳: <strong id="cliffBestDisplay" style="color:var(--cyan); font-family:'Share Tech Mono', monospace; font-variant-numeric:tabular-nums; display:inline-block; min-width:55px; text-align:right;">--</strong></span>
       </div>
       <canvas id="cliffCanvas" width="800" height="260" style="width:100%; height:auto; background:#0b0f19; border:2px solid var(--border); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.8); touch-action:none; display:block;"></canvas>
     </div>
@@ -1918,8 +1918,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
     let cliffLoopId = null;
     let cliffState = 'READY'; // READY, ACCEL, BRAKING, STOPPED, FALLING
     const CLIFF_ROAD_Y = 195;
-    const CLIFF_EDGE_X = 640;
-    const CAR_START_X = 50;
+    const CLIFF_EDGE_X = 660; // 懸崖邊緣位置
+    const CAR_START_X = 40;   // 起跑線
 
     let cliffBestCm = parseFloat(localStorage.getItem('cliff10s_best') || '999');
 
@@ -1929,8 +1929,8 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       w: 60,
       h: 24,
       speed: 0,
-      accel: 0.35,
-      maxSpeed: 14.5,
+      accel: 0.085,   // 平滑加速曲線，衝刺時間延長至 2.2~2.6 秒
+      maxSpeed: 7.5,  // 調降極速，讓 1 幀僅位移 2cm，真正解鎖 0.1~2.0cm 的極限技巧！
       angle: 0,
       vy: 0,
       wheelRot: 0,
@@ -1991,7 +1991,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
       car.x = CAR_START_X;
       car.y = CLIFF_ROAD_Y - 24;
-      car.speed = 1.2;
+      car.speed = 0.8;
       car.angle = 0;
       car.vy = 0;
       car.teeter = 0;
@@ -2004,10 +2004,10 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       cliffState = 'ACCEL';
 
       if (cliffStatusBanner) {
-        cliffStatusBanner.innerHTML = '<span style="color:var(--gold);">⚡ 油門全開狂飆中！看準時機拍擊急煞！</span>';
+        cliffStatusBanner.innerHTML = '<span style="color:var(--gold);">⚡ 油門全開狂飆中！看準距離拍擊急煞！</span>';
       }
       bottomHint.className = 'bottom-hint';
-      bottomHint.innerHTML = '<span>⚠️ 萬丈懸崖逼近！快拍大按鈕死命踩煞車！！</span>';
+      bottomHint.innerHTML = '<span>⚠️ 萬丈懸崖逼近！快看準時機死命踩煞車！！</span>';
 
       playTone(320, 'sawtooth', 0.15, 0.4);
       setTimeout(() => playTone(540, 'sawtooth', 0.2, 0.4), 100);
@@ -2098,14 +2098,17 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         }
       }
       else if (cliffState === 'BRAKING') {
-        // 急煞物理：劇烈滑行減速
-        car.speed = car.speed * 0.942 - 0.14;
+        // 急煞物理：雙階段擬真阻力曲線（前段強抓咬死、末段極細微滑停，真正解鎖毫米級微距停駐）
+        if (car.speed > 2.5) {
+          car.speed = car.speed * 0.942 - 0.12; // 輪胎猛烈抓地咬死急煞
+        } else {
+          car.speed = car.speed * 0.915 - 0.035; // 末段極致細膩滑停，精準逼近崖邊！
+        }
         car.wheelRot += car.speed * 0.08;
-        cliffRoadOffset = (cliffRoadOffset + Math.max(0, car.speed)) % 40;
 
-        if (car.speed > 0.05) {
+        if (car.speed > 0.03) {
           car.x += car.speed;
-          car.angle = 0.04; // 急煞重心前傾下沉
+          car.angle = 0.035; // 急煞重心微傾
 
           // 左右雙輪胎焦黑煞車痕
           cliffSkidMarks.push({
@@ -2142,11 +2145,11 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
             // 🎉 成功煞住！
             cliffState = 'STOPPED';
             const distPx = CLIFF_EDGE_X - (car.x + car.w);
-            const distCm = Math.max(0.1, parseFloat((distPx * 0.42).toFixed(1)));
+            const distCm = Math.max(0.1, parseFloat((distPx * 0.35).toFixed(1)));
             car.finalDistCm = distCm;
             car.isBusted = false;
 
-            if (distPx <= 12) {
+            if (distPx <= 10) {
               car.teeter = 1; // 極限距離，車輪懸空輕微晃動！
             }
 
@@ -2212,7 +2215,7 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
 
       // 更新車速 HUD
       if (cliffSpeedDisplay) {
-        cliffSpeedDisplay.innerText = Math.round(car.speed * 18);
+        cliffSpeedDisplay.innerText = Math.round(car.speed * 26);
       }
 
       // 更新煙霧與排氣粒子
@@ -2310,20 +2313,40 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
         cliffCtx.fillRect(skid.x, skid.y, skid.w, 3);
       });
 
-      // 路面黃色虛線
+      // 路面黃色虛線 (完全固定靜態，徹底消除跳幀震動)
       cliffCtx.fillStyle = '#eab308';
-      for (let x = 0; x < CLIFF_EDGE_X - 80; x += 36) {
-        const lineX = ((x - cliffRoadOffset) % (CLIFF_EDGE_X - 80) + (CLIFF_EDGE_X - 80)) % (CLIFF_EDGE_X - 80);
-        cliffCtx.fillRect(lineX, CLIFF_ROAD_Y - 11, 18, 2);
+      for (let x = 30; x < 550; x += 36) {
+        cliffCtx.fillRect(x, CLIFF_ROAD_Y - 11, 18, 2);
       }
 
-      // 4. 懸崖危險警示區 (540 到 CLIFF_EDGE_X)
+      // 4. 路面距離倒數標線 (100M, 50M, 20M, 10M)
+      cliffCtx.save();
+      cliffCtx.font = 'bold 10px "Share Tech Mono", monospace';
+      cliffCtx.textAlign = 'center';
+
+      // 100M
+      cliffCtx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      cliffCtx.fillRect(230, CLIFF_ROAD_Y - 18, 2, 16);
+      cliffCtx.fillText('100M', 230, CLIFF_ROAD_Y - 22);
+
+      // 50M
+      cliffCtx.fillStyle = 'rgba(0, 242, 254, 0.6)';
+      cliffCtx.fillRect(390, CLIFF_ROAD_Y - 18, 2, 16);
+      cliffCtx.fillText('50M', 390, CLIFF_ROAD_Y - 22);
+
+      // 20M
+      cliffCtx.fillStyle = 'rgba(250, 204, 21, 0.8)';
+      cliffCtx.fillRect(510, CLIFF_ROAD_Y - 18, 2, 16);
+      cliffCtx.fillText('20M', 510, CLIFF_ROAD_Y - 22);
+      cliffCtx.restore();
+
+      // 5. 懸崖危險警示區 (560 到 CLIFF_EDGE_X)
       // 黃黑相間斜紋危險警示區
       cliffCtx.save();
       cliffCtx.beginPath();
-      cliffCtx.rect(530, CLIFF_ROAD_Y - 20, CLIFF_EDGE_X - 530, 20);
+      cliffCtx.rect(560, CLIFF_ROAD_Y - 20, CLIFF_EDGE_X - 560, 20);
       cliffCtx.clip();
-      for (let hx = 510; hx < CLIFF_EDGE_X + 20; hx += 16) {
+      for (let hx = 540; hx < CLIFF_EDGE_X + 20; hx += 16) {
         cliffCtx.fillStyle = '#facc15';
         cliffCtx.beginPath();
         cliffCtx.moveTo(hx, CLIFF_ROAD_Y);
@@ -2335,19 +2358,19 @@ const char PAGE_HTML[] PROGMEM = R"rawliteral(
       }
       cliffCtx.restore();
 
-      // 崖邊警示立牌
+      // 崖邊警示立牌 (10M)
       cliffCtx.fillStyle = '#64748b';
-      cliffCtx.fillRect(525, CLIFF_ROAD_Y - 36, 4, 18);
+      cliffCtx.fillRect(555, CLIFF_ROAD_Y - 36, 4, 18);
       cliffCtx.fillStyle = '#ef4444';
       cliffCtx.beginPath();
-      cliffCtx.moveTo(527, CLIFF_ROAD_Y - 50);
-      cliffCtx.lineTo(514, CLIFF_ROAD_Y - 32);
-      cliffCtx.lineTo(540, CLIFF_ROAD_Y - 32);
+      cliffCtx.moveTo(557, CLIFF_ROAD_Y - 50);
+      cliffCtx.lineTo(544, CLIFF_ROAD_Y - 32);
+      cliffCtx.lineTo(570, CLIFF_ROAD_Y - 32);
       cliffCtx.closePath();
       cliffCtx.fill();
       cliffCtx.fillStyle = '#fff';
-      cliffCtx.font = 'bold 10px sans-serif';
-      cliffCtx.fillText('!', 525, CLIFF_ROAD_Y - 36);
+      cliffCtx.font = 'bold 9px sans-serif';
+      cliffCtx.fillText('10M', 555, CLIFF_ROAD_Y - 36);
 
       // 崖邊暴閃警告燈
       const beaconOn = Math.floor(Date.now() / 200) % 2 === 0;
